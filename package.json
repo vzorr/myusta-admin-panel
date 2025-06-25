@@ -7,16 +7,29 @@
     "@testing-library/jest-dom": "^6.6.3",
     "@testing-library/react": "^16.3.0",
     "@testing-library/user-event": "^13.5.0",
+    "lucide-react": "^0.523.0",
     "react": "^19.1.0",
     "react-dom": "^19.1.0",
     "react-scripts": "5.0.1",
     "web-vitals": "^2.1.4"
   },
   "scripts": {
-    "start": "react-scripts start",
+    "dev": "cross-env FAST_REFRESH=true CHOKIDAR_USEPOLLING=false WDS_SOCKET_PORT=0 react-scripts start",
+    "dev:poll": "cross-env FAST_REFRESH=true CHOKIDAR_USEPOLLING=true CHOKIDAR_INTERVAL=1000 react-scripts start",
+    "dev:windows": "set FAST_REFRESH=true&& set WDS_SOCKET_PORT=0&& react-scripts start",
+    "dev:debug": "cross-env FAST_REFRESH=true GENERATE_SOURCEMAP=true REACT_APP_DEBUG=true react-scripts start",
+    "dev:unix": "FAST_REFRESH=true CHOKIDAR_USEPOLLING=false WDS_SOCKET_PORT=0 react-scripts start",
+    "start": "npm run dev",
     "build": "react-scripts build",
+    "build:analyze": "npm run build && npx serve -s build",
     "test": "react-scripts test",
-    "eject": "react-scripts eject"
+    "test:watch": "react-scripts test --watchAll --coverage",
+    "test:ci": "react-scripts test --coverage --watchAll=false",
+    "eject": "react-scripts eject",
+    "clean": "rm -rf node_modules/.cache && rm -rf .eslintcache",
+    "clean:windows": "rmdir /s /q node_modules\\.cache 2>nul & del .eslintcache 2>nul",
+    "restart": "npm run clean && npm run dev",
+    "restart:windows": "npm run clean:windows && npm run dev:windows"
   },
   "eslintConfig": {
     "extends": [
@@ -35,5 +48,18 @@
       "last 1 firefox version",
       "last 1 safari version"
     ]
+  },
+  "devDependencies": {
+    "@tailwindcss/forms": "^0.5.10",
+    "autoprefixer": "^10.4.21",
+    "cross-env": "^7.0.3",
+    "postcss": "^8.5.6",
+    "tailwindcss": "^4.1.10"
+  },
+  "proxy": "http://localhost:3001",
+  "homepage": ".",
+  "engines": {
+    "node": ">=16.0.0",
+    "npm": ">=7.0.0"
   }
 }
