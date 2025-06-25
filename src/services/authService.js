@@ -15,8 +15,10 @@ class AuthService {
 
     const config = {
       method: 'POST',
+      mode: 'cors', // Explicitly set CORS mode
       headers: { 
-        'Content-Type': 'application/json'
+        'Content-Type': 'application/json',
+        'Accept': 'application/json'
       },
       body: loginData
     };
@@ -31,23 +33,42 @@ class AuthService {
 
     try {
       const response = await fetch(`${this.baseUrl}/api/auth/login`, config);
+      
+      if (APP_CONFIG.DEBUG) {
+        console.log('Response status:', response.status);
+        console.log('Response headers:', [...response.headers.entries()]);
+      }
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        throw new Error(`HTTP ${response.status}: ${errorText}`);
+      }
+
       const responseData = await response.json();
 
       if (APP_CONFIG.DEBUG) {
-        console.log('Login response:', JSON.stringify(responseData));
+        console.log('Login response:', JSON.stringify(responseData, null, 2));
       }
 
-      if (response.ok) {
-        // Handle different response formats
-        const token = responseData.token || responseData.access_token || responseData.accessToken;
-        const user = responseData.user || responseData.data?.user || {
-          email: credentials.emailOrPhone,
-          role: credentials.role,
-          name: responseData.name || responseData.username || credentials.emailOrPhone.split('@')[0]
-        };
-
+      // Handle the specific response format you provided
+      if (responseData.success && responseData.result) {
+        const { result } = responseData;
+        const token = result.token;
+        
         if (token) {
+          // Store token and user data
           this.storeToken(token);
+          this.storeUserData(result);
+          
+          const user = {
+            id: result.userId,
+            firstName: result.firstName,
+            lastName: result.lastName,
+            name: `${result.firstName} ${result.lastName}`,
+            email: result.email,
+            role: result.role
+          };
+
           return {
             success: true,
             user: user,
@@ -63,43 +84,59 @@ class AuthService {
       } else {
         return {
           success: false,
-          error: responseData.message || responseData.error || `HTTP Error: ${response.status}`
+          error: responseData.message || 'Login failed'
         };
       }
     } catch (error) {
       console.error('Login error:', error);
+      
+      // Provide specific error messages for common issues
+      let errorMessage = error.message;
+      
+      if (error.message.includes('Failed to fetch')) {
+        errorMessage = 'Network error: Unable to connect to server. Please check if the server is running and CORS is properly configured.';
+      } else if (error.message.includes('CORS')) {
+        errorMessage = 'CORS error: The server needs to allow requests from this domain.';
+      } else if (error.message.includes('TypeError')) {
+        errorMessage = 'Network error: Please check your internet connection and try again.';
+      }
+
       return {
         success: false,
-        error: `Network error: ${error.message}`
+        error: errorMessage
       };
     }
   }
 
   async logout() {
     try {
-      // Optional: Call logout endpoint if available
-      if (this.getStoredToken()) {
+      const token = this.getStoredToken();
+      
+      if (token) {
+        // Optional: Call logout endpoint if available
         const config = {
           method: 'POST',
+          mode: 'cors',
           headers: { 
             'Content-Type': 'application/json',
-            'Authorization': `Bearer ${this.getStoredToken()}`
+            'Authorization': `Bearer ${token}`
           }
         };
 
         try {
           await fetch(`${this.baseUrl}/api/auth/logout`, config);
         } catch (error) {
-          // Continue with logout even if server call fails
           console.warn('Logout endpoint failed:', error);
         }
       }
       
       this.clearToken();
+      this.clearUserData();
       return { success: true };
     } catch (error) {
       // Clear token anyway
       this.clearToken();
+      this.clearUserData();
       return { success: true };
     }
   }
@@ -110,6 +147,7 @@ class AuthService {
 
     const config = {
       method: 'POST',
+      mode: 'cors',
       headers: { 
         'Content-Type': 'application/json',
         'Authorization': `Bearer ${token}`
@@ -121,8 +159,8 @@ class AuthService {
       const response = await fetch(`${this.baseUrl}/api/auth/refresh`, config);
       const responseData = await response.json();
       
-      if (response.ok && (responseData.token || responseData.access_token)) {
-        const newToken = responseData.token || responseData.access_token;
+      if (response.ok && responseData.success && responseData.result?.token) {
+        const newToken = responseData.result.token;
         this.storeToken(newToken);
         return {
           success: true,
@@ -152,6 +190,7 @@ class AuthService {
 
     const config = {
       method: 'GET',
+      mode: 'cors',
       headers: { 
         'Content-Type': 'application/json',
         'Authorization': `Bearer ${token}`
@@ -167,21 +206,56 @@ class AuthService {
     }
   }
 
+  // Token management methods
   storeToken(token) {
-    localStorage.setItem(APP_CONFIG.TOKEN_KEY, token);
-    if (APP_CONFIG.DEBUG) {
-      console.log('Token stored:', token.substring(0, 20) + '...');
+    if (typeof Storage !== "undefined") {
+      localStorage.setItem(APP_CONFIG.TOKEN_KEY, token);
+      if (APP_CONFIG.DEBUG) {
+        console.log('Token stored:', token.substring(0, 20) + '...');
+      }
     }
   }
 
   getStoredToken() {
-    return localStorage.getItem(APP_CONFIG.TOKEN_KEY);
+    if (typeof Storage !== "undefined") {
+      return localStorage.getItem(APP_CONFIG.TOKEN_KEY);
+    }
+    return null;
   }
 
   clearToken() {
-    localStorage.removeItem(APP_CONFIG.TOKEN_KEY);
-    if (APP_CONFIG.DEBUG) {
-      console.log('Token cleared');
+    if (typeof Storage !== "undefined") {
+      localStorage.removeItem(APP_CONFIG.TOKEN_KEY);
+      if (APP_CONFIG.DEBUG) {
+        console.log('Token cleared');
+      }
+    }
+  }
+
+  // User data management methods
+  storeUserData(userData) {
+    if (typeof Storage !== "undefined") {
+      localStorage.setItem('userData', JSON.stringify(userData));
+      if (APP_CONFIG.DEBUG) {
+        console.log('User data stored:', userData);
+      }
+    }
+  }
+
+  getStoredUserData() {
+    if (typeof Storage !== "undefined") {
+      const userData = localStorage.getItem('userData');
+      return userData ? JSON.parse(userData) : null;
+    }
+    return null;
+  }
+
+  clearUserData() {
+    if (typeof Storage !== "undefined") {
+      localStorage.removeItem('userData');
+      if (APP_CONFIG.DEBUG) {
+        console.log('User data cleared');
+      }
     }
   }
 
@@ -189,7 +263,6 @@ class AuthService {
     if (!token) return true;
     
     try {
-      // Handle JWT tokens
       const parts = token.split('.');
       if (parts.length === 3) {
         const payload = JSON.parse(atob(parts[1]));
@@ -197,11 +270,10 @@ class AuthService {
         return payload.exp && payload.exp < currentTime;
       }
       
-      // For non-JWT tokens, assume they're valid
       return false;
     } catch (error) {
       console.warn('Error checking token expiration:', error);
-      return false; // Assume valid if we can't parse
+      return false;
     }
   }
 
@@ -215,10 +287,11 @@ class AuthService {
       if (parts.length === 3) {
         const payload = JSON.parse(atob(parts[1]));
         return {
-          id: payload.sub || payload.userId || payload.id,
+          id: payload.id,
           email: payload.email,
           role: payload.role,
-          name: payload.name || payload.username
+          name: payload.name,
+          phone: payload.phone
         };
       }
     } catch (error) {
@@ -228,7 +301,7 @@ class AuthService {
     return null;
   }
 
-  // Test the exact login configuration you provided
+  // Test the exact login configuration
   async testLogin() {
     const data = JSON.stringify({
       "emailOrPhone": "amirsohail680@gmail.com",
@@ -238,6 +311,7 @@ class AuthService {
 
     const config = {
       method: 'POST',
+      mode: 'cors',
       headers: { 
         'Content-Type': 'application/json'
       },
@@ -250,12 +324,18 @@ class AuthService {
       const response = await fetch('https://myusta.al/myusta-backend/api/auth/login', config);
       const responseData = await response.json();
       
-      console.log('Test login response:', JSON.stringify(responseData));
+      console.log('Test login response:', JSON.stringify(responseData, null, 2));
       return responseData;
     } catch (error) {
       console.error('Test login error:', error);
       throw error;
     }
+  }
+
+  // Method to get authorization header for API calls
+  getAuthHeader() {
+    const token = this.getStoredToken();
+    return token ? { 'Authorization': `Bearer ${token}` } : {};
   }
 }
 

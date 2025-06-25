@@ -7,12 +7,12 @@ export const API_ENDPOINTS = {
 // Login credentials from environment variables
 export const LOGIN_CREDENTIALS = {
   emailOrPhone: process.env.REACT_APP_LOGIN_EMAIL || 'amirsohail680@gmail.com',
-  password: process.env.REACT_APP_LOGIN_PASSWORD || '',
+  password: process.env.REACT_APP_LOGIN_PASSWORD || 'Password123@', // Added actual password
   role: process.env.REACT_APP_LOGIN_ROLE || 'customer'
 };
 
 export const APP_CONFIG = {
-  APP_NAME: process.env.REACT_APP_APP_NAME || 'Admin Panel',
+  APP_NAME: process.env.REACT_APP_APP_NAME || 'MyUsta Admin Panel',
   DEBUG: process.env.REACT_APP_DEBUG === 'true' || process.env.NODE_ENV === 'development',
   TOKEN_KEY: 'adminToken',
   USE_MOCK_API: process.env.REACT_APP_USE_MOCK_API === 'true',
@@ -39,7 +39,8 @@ export const TABLE_ACTIONS = {
   SAVE: 'save',
   CANCEL: 'cancel',
   CREATE: 'create',
-  REFRESH: 'refresh'
+  REFRESH: 'refresh',
+  SCHEMA: 'schema'
 };
 
 export const BACKEND_TYPES = {
@@ -82,67 +83,19 @@ export const HTTP_STATUS = {
   GATEWAY_TIMEOUT: 504
 };
 
-// Default table configurations
-export const DEFAULT_TABLES = {
-  MYUSTA: [
-    { 
-      name: 'users', 
-      endpoint: '/api/users', 
-      displayName: 'Users',
-      description: 'User accounts and profiles',
-      icon: 'Users'
-    },
-    { 
-      name: 'orders', 
-      endpoint: '/api/orders', 
-      displayName: 'Orders',
-      description: 'Customer orders and transactions',
-      icon: 'ShoppingCart'
-    },
-    { 
-      name: 'products', 
-      endpoint: '/api/products', 
-      displayName: 'Products',
-      description: 'Product catalog and inventory',
-      icon: 'Package'
-    },
-    { 
-      name: 'categories', 
-      endpoint: '/api/categories', 
-      displayName: 'Categories',
-      description: 'Product categories and classifications',
-      icon: 'Tag'
-    }
-  ],
-  CHAT: [
-    { 
-      name: 'conversations', 
-      endpoint: '/api/conversations', 
-      displayName: 'Conversations',
-      description: 'Chat conversations and threads',
-      icon: 'MessageCircle'
-    },
-    { 
-      name: 'messages', 
-      endpoint: '/api/messages', 
-      displayName: 'Messages',
-      description: 'Individual chat messages',
-      icon: 'Message'
-    },
-    { 
-      name: 'users', 
-      endpoint: '/api/users', 
-      displayName: 'Chat Users',
-      description: 'Chat system users',
-      icon: 'Users'
-    }
-  ]
+// Window types for window management
+export const WINDOW_TYPES = {
+  TABLE_DATA: 'table_data',
+  TABLE_SCHEMA: 'table_schema', 
+  RECORD_DETAIL: 'record_detail',
+  SEARCH_RESULTS: 'search_results',
+  CREATE_RECORD: 'create_record'
 };
 
 // Pagination defaults
 export const PAGINATION = {
-  DEFAULT_PAGE_SIZE: 25,
-  PAGE_SIZE_OPTIONS: [10, 25, 50, 100],
+  DEFAULT_PAGE_SIZE: 20,
+  PAGE_SIZE_OPTIONS: [10, 20, 50, 100],
   MAX_PAGE_SIZE: 1000
 };
 
@@ -176,7 +129,8 @@ export const UI_CONFIG = {
   DEBOUNCE_DELAY: 300,
   TOAST_DURATION: 5000,
   MODAL_Z_INDEX: 1000,
-  DROPDOWN_Z_INDEX: 999
+  DROPDOWN_Z_INDEX: 999,
+  WINDOW_Z_INDEX_BASE: 100
 };
 
 // Error Messages
@@ -188,7 +142,10 @@ export const ERROR_MESSAGES = {
   SERVER_ERROR: 'An internal server error occurred. Please try again later.',
   VALIDATION_ERROR: 'Please check your input and try again.',
   TIMEOUT_ERROR: 'Request timed out. Please try again.',
-  UNKNOWN_ERROR: 'An unexpected error occurred. Please try again.'
+  UNKNOWN_ERROR: 'An unexpected error occurred. Please try again.',
+  CORS_ERROR: 'CORS error: Please check server configuration.',
+  LOGIN_FAILED: 'Login failed. Please check your credentials.',
+  TOKEN_EXPIRED: 'Your session has expired. Please login again.'
 };
 
 // Success Messages
@@ -198,5 +155,46 @@ export const SUCCESS_MESSAGES = {
   SAVE_SUCCESS: 'Changes saved successfully!',
   DELETE_SUCCESS: 'Item deleted successfully!',
   CREATE_SUCCESS: 'Item created successfully!',
-  UPDATE_SUCCESS: 'Item updated successfully!'
+  UPDATE_SUCCESS: 'Item updated successfully!',
+  COPY_SUCCESS: 'Copied to clipboard!',
+  REFRESH_SUCCESS: 'Data refreshed successfully!'
+};
+
+// Database field types with icons and colors
+export const FIELD_TYPES = {
+  INTEGER: { icon: '🔢', color: 'text-blue-600', bgColor: 'bg-blue-50' },
+  STRING: { icon: '📝', color: 'text-green-600', bgColor: 'bg-green-50' },
+  TEXT: { icon: '📄', color: 'text-purple-600', bgColor: 'bg-purple-50' },
+  BOOLEAN: { icon: '☑️', color: 'text-orange-600', bgColor: 'bg-orange-50' },
+  DATE: { icon: '📅', color: 'text-red-600', bgColor: 'bg-red-50' },
+  DATEONLY: { icon: '📅', color: 'text-red-600', bgColor: 'bg-red-50' },
+  ENUM: { icon: '📋', color: 'text-indigo-600', bgColor: 'bg-indigo-50' },
+  JSON: { icon: '{}', color: 'text-teal-600', bgColor: 'bg-teal-50' },
+  JSONB: { icon: '{}', color: 'text-teal-600', bgColor: 'bg-teal-50' },
+  FLOAT: { icon: '🔢', color: 'text-blue-600', bgColor: 'bg-blue-50' },
+  DECIMAL: { icon: '💰', color: 'text-yellow-600', bgColor: 'bg-yellow-50' }
+};
+
+// Association types
+export const ASSOCIATION_TYPES = {
+  HasMany: { color: 'text-blue-600', bgColor: 'bg-blue-100' },
+  HasOne: { color: 'text-green-600', bgColor: 'bg-green-100' },
+  BelongsTo: { color: 'text-purple-600', bgColor: 'bg-purple-100' },
+  BelongsToMany: { color: 'text-orange-600', bgColor: 'bg-orange-100' }
+};
+
+// Role configurations
+export const USER_ROLES = {
+  ADMIN: 'admin',
+  CUSTOMER: 'customer', 
+  USTA: 'usta'
+};
+
+// Window default sizes and positions
+export const WINDOW_DEFAULTS = {
+  TABLE_DATA: { width: 1000, height: 700 },
+  TABLE_SCHEMA: { width: 800, height: 600 },
+  RECORD_DETAIL: { width: 600, height: 500 },
+  SEARCH_RESULTS: { width: 900, height: 600 },
+  CREATE_RECORD: { width: 500, height: 400 }
 };

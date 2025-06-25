@@ -6,13 +6,15 @@ import { useAuth } from './AuthContext';
 const TableContext = createContext(null);
 
 const initialState = {
-  tables: [],
+  tables: {
+    myusta: [],
+    chat: []
+  },
   selectedTable: null,
   data: [],
   loading: false,
   error: null,
-  editingRow: null,
-  editData: {}
+  searchResults: []
 };
 
 const tableReducer = (state, action) => {
@@ -37,9 +39,7 @@ const tableReducer = (state, action) => {
     case 'SET_SELECTED_TABLE':
       return {
         ...state,
-        selectedTable: action.payload,
-        editingRow: null,
-        editData: {}
+        selectedTable: action.payload
       };
     case 'SET_TABLE_DATA':
       return {
@@ -47,46 +47,21 @@ const tableReducer = (state, action) => {
         data: action.payload,
         loading: false
       };
-    case 'SET_EDITING_ROW':
+    case 'SET_SEARCH_RESULTS':
       return {
         ...state,
-        editingRow: action.payload.id,
-        editData: action.payload.data
-      };
-    case 'UPDATE_EDIT_DATA':
-      return {
-        ...state,
-        editData: {
-          ...state.editData,
-          [action.payload.field]: action.payload.value
-        }
-      };
-    case 'CANCEL_EDITING':
-      return {
-        ...state,
-        editingRow: null,
-        editData: {}
-      };
-    case 'UPDATE_ROW':
-      return {
-        ...state,
-        data: state.data.map(row =>
-          row.id === action.payload.id
-            ? { ...row, ...action.payload.data }
-            : row
-        ),
-        editingRow: null,
-        editData: {}
-      };
-    case 'DELETE_ROW':
-      return {
-        ...state,
-        data: state.data.filter(row => row.id !== action.payload.id)
+        searchResults: action.payload,
+        loading: false
       };
     case 'CLEAR_ERROR':
       return {
         ...state,
         error: null
+      };
+    case 'CLEAR_SEARCH':
+      return {
+        ...state,
+        searchResults: []
       };
     default:
       return state;
@@ -101,74 +76,31 @@ export const TableProvider = ({ children }) => {
 
   const fetchTables = async () => {
     dispatch({ type: 'SET_LOADING', payload: true });
+    dispatch({ type: 'CLEAR_ERROR' });
     
     try {
-      const tables = await tableService.getTables();
-      dispatch({ type: 'SET_TABLES', payload: tables });
+      const tablesData = await tableService.getTables();
+      dispatch({ type: 'SET_TABLES', payload: tablesData });
     } catch (error) {
       dispatch({ type: 'SET_ERROR', payload: error.message });
     }
   };
 
-  const selectTable = async (table) => {
+  const selectTable = (table) => {
     dispatch({ type: 'SET_SELECTED_TABLE', payload: table });
+  };
+
+  const fetchTableData = async (table, options = {}) => {
     dispatch({ type: 'SET_LOADING', payload: true });
+    dispatch({ type: 'CLEAR_ERROR' });
     
     try {
-      const data = await tableService.getTableData(table);
-      dispatch({ type: 'SET_TABLE_DATA', payload: data });
-    } catch (error) {
-      dispatch({ type: 'SET_ERROR', payload: error.message });
-    }
-  };
-
-  const refreshTableData = async () => {
-    if (!state.selectedTable) return;
-    
-    dispatch({ type: 'SET_LOADING', payload: true });
-    
-    try {
-      const data = await tableService.getTableData(state.selectedTable);
-      dispatch({ type: 'SET_TABLE_DATA', payload: data });
-    } catch (error) {
-      dispatch({ type: 'SET_ERROR', payload: error.message });
-    }
-  };
-
-  const startEditing = (row) => {
-    dispatch({
-      type: 'SET_EDITING_ROW',
-      payload: { id: row.id, data: { ...row } }
-    });
-  };
-
-  const updateEditData = (field, value) => {
-    dispatch({
-      type: 'UPDATE_EDIT_DATA',
-      payload: { field, value }
-    });
-  };
-
-  const cancelEditing = () => {
-    dispatch({ type: 'CANCEL_EDITING' });
-  };
-
-  const saveRow = async (id) => {
-    try {
-      const response = await tableService.updateRecord(
-        state.selectedTable,
-        id,
-        state.editData
-      );
-      
-      if (response.success) {
-        dispatch({
-          type: 'UPDATE_ROW',
-          payload: { id, data: state.editData }
-        });
-        return { success: true };
+      const result = await tableService.getTableData(table, options);
+      if (result.success) {
+        dispatch({ type: 'SET_TABLE_DATA', payload: result.records });
+        return result;
       } else {
-        throw new Error(response.error);
+        throw new Error(result.error);
       }
     } catch (error) {
       dispatch({ type: 'SET_ERROR', payload: error.message });
@@ -176,19 +108,73 @@ export const TableProvider = ({ children }) => {
     }
   };
 
-  const deleteRow = async (id) => {
+  const searchGlobal = async (searchTerm) => {
+    if (!searchTerm.trim()) {
+      dispatch({ type: 'CLEAR_SEARCH' });
+      return;
+    }
+
+    dispatch({ type: 'SET_LOADING', payload: true });
+    dispatch({ type: 'CLEAR_ERROR' });
+    
     try {
-      const response = await tableService.deleteRecord(
-        state.selectedTable,
-        id
-      );
+      // Get all available tables
+      const allTables = [
+        ...state.tables.myusta,
+        ...state.tables.chat
+      ];
       
-      if (response.success) {
-        dispatch({ type: 'DELETE_ROW', payload: { id } });
-        return { success: true };
-      } else {
-        throw new Error(response.error);
-      }
+      const results = await tableService.searchGlobal(searchTerm, allTables);
+      dispatch({ type: 'SET_SEARCH_RESULTS', payload: results });
+    } catch (error) {
+      dispatch({ type: 'SET_ERROR', payload: error.message });
+    }
+  };
+
+  const getTableSchema = async (table) => {
+    try {
+      const result = await tableService.getTableSchema(table);
+      return result;
+    } catch (error) {
+      dispatch({ type: 'SET_ERROR', payload: error.message });
+      return { success: false, error: error.message };
+    }
+  };
+
+  const getRecord = async (table, recordId) => {
+    try {
+      const result = await tableService.getRecord(table, recordId);
+      return result;
+    } catch (error) {
+      dispatch({ type: 'SET_ERROR', payload: error.message });
+      return { success: false, error: error.message };
+    }
+  };
+
+  const updateRecord = async (table, recordId, data) => {
+    try {
+      const result = await tableService.updateRecord(table, recordId, data);
+      return result;
+    } catch (error) {
+      dispatch({ type: 'SET_ERROR', payload: error.message });
+      return { success: false, error: error.message };
+    }
+  };
+
+  const deleteRecord = async (table, recordId) => {
+    try {
+      const result = await tableService.deleteRecord(table, recordId);
+      return result;
+    } catch (error) {
+      dispatch({ type: 'SET_ERROR', payload: error.message });
+      return { success: false, error: error.message };
+    }
+  };
+
+  const createRecord = async (table, data) => {
+    try {
+      const result = await tableService.createRecord(table, data);
+      return result;
     } catch (error) {
       dispatch({ type: 'SET_ERROR', payload: error.message });
       return { success: false, error: error.message };
@@ -199,17 +185,47 @@ export const TableProvider = ({ children }) => {
     dispatch({ type: 'CLEAR_ERROR' });
   };
 
+  const clearSearch = () => {
+    dispatch({ type: 'CLEAR_SEARCH' });
+  };
+
+  // Helper methods
+  const getAllTables = () => {
+    return [
+      ...state.tables.myusta,
+      ...state.tables.chat
+    ];
+  };
+
+  const getTableByName = (name, backend) => {
+    const tables = backend === 'myusta' ? state.tables.myusta : state.tables.chat;
+    return tables.find(table => table.name === name);
+  };
+
+  const getTablesCount = () => {
+    return {
+      myusta: state.tables.myusta.length,
+      chat: state.tables.chat.length,
+      total: state.tables.myusta.length + state.tables.chat.length
+    };
+  };
+
   const value = {
     ...state,
     fetchTables,
     selectTable,
-    refreshTableData,
-    startEditing,
-    updateEditData,
-    cancelEditing,
-    saveRow,
-    deleteRow,
-    clearError
+    fetchTableData,
+    searchGlobal,
+    getTableSchema,
+    getRecord,
+    updateRecord,
+    deleteRecord,
+    createRecord,
+    clearError,
+    clearSearch,
+    getAllTables,
+    getTableByName,
+    getTablesCount
   };
 
   return (
