@@ -1,8 +1,16 @@
-// src/utils/constants.js
+import { URL_MAPPINGS, urlHelpers, debugUrls } from '../config/urlMappings';
+
 export const API_ENDPOINTS = {
-  MYUSTA_BACKEND: process.env.REACT_APP_MYUSTA_BACKEND_URL || 'https://myusta.al/myusta-backend',
-  CHAT_BACKEND: process.env.REACT_APP_CHAT_BACKEND_URL || 'https://myusta.al/chat-backend'
+  // Use URL mappings
+  MYUSTA_BACKEND: URL_MAPPINGS.base.myusta,     // /api/myusta in dev, full URL in prod
+  CHAT_BACKEND: URL_MAPPINGS.base.chat,         // /api/chat in dev, full URL in prod
 };
+export { URL_MAPPINGS, urlHelpers };
+
+if (process.env.NODE_ENV === 'development') {
+  debugUrls();
+}
+
 
 // Login credentials from environment variables
 export const LOGIN_CREDENTIALS = {

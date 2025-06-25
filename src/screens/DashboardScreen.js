@@ -5,8 +5,8 @@ import { useTable } from '../context/TableContext';
 import { WindowProvider } from '../context/WindowContext';
 import Layout from '../components/common/Layout';
 import DatabaseSidebar from '../components/sidebar/DatabaseSidebar';
-
-import WindowContainer, {WindowTaskbar} from '../components/windows/WindowContainer';
+import WindowContainer from '../components/windows/WindowContainer';
+import WindowTaskbar from '../components/windows/WindowTaskbar';
 import { APP_CONFIG } from '../utils/constants';
 
 const DashboardScreen = () => {
