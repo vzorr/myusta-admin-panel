@@ -4,6 +4,7 @@ import { AuthProvider, useAuth } from './context/AuthContext';
 import { TableProvider } from './context/TableContext';
 import LoginScreen from './screens/LoginScreen';
 import DashboardScreen from './screens/DashboardScreen';
+// Import Tailwind CSS first, then custom styles
 import './styles/globals.css';
 
 const AppContent = () => {

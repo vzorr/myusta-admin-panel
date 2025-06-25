@@ -1,7 +1,7 @@
 import React from 'react';
 import ReactDOM from 'react-dom/client';
 import App from './App';
-import './index.css';  // or './styles/globals.css'
+// Remove index.css import since globals.css handles all styles
 
 const root = ReactDOM.createRoot(document.getElementById('root'));
 root.render(

@@ -1,4 +1,3 @@
-
 // src/utils/validators.js
 export const validateRequired = (value) => {
   if (value === null || value === undefined || value === '') {
@@ -64,8 +63,9 @@ export const validateUrl = (url) => {
 export const validatePhone = (phone) => {
   if (!phone) return null;
   
-  const phoneRegex = /^[\+]?[1-9][\d]{0,15}$/;
-  if (!phoneRegex.test(phone.replace(/[\s\-\(\)]/g, ''))) {
+  // Fixed: removed unnecessary escape character
+  const phoneRegex = /^[+]?[1-9][\d]{0,15}$/;
+  if (!phoneRegex.test(phone.replace(/[\s\-()]/g, ''))) {
     return 'Please enter a valid phone number';
   }
   return null;

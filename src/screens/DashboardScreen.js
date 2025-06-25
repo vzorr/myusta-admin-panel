@@ -4,7 +4,7 @@ import { useAuth } from '../context/AuthContext';
 import { useTable } from '../context/TableContext';
 import Layout from '../components/common/Layout';
 import TableList from '../components/table/TableList';
-import DataTable from '../components/table/TableList';
+import DataTable from '../components/table/DataTable'; // Fixed import
 import { APP_CONFIG } from '../utils/constants';
 
 const DashboardScreen = () => {
@@ -75,14 +75,14 @@ const DashboardScreen = () => {
         {/* Main Content Area */}
         <div className="flex-1 flex flex-col">
           {error && (
-            <div className="bg-red-50 border-l-4 border-red-400 p-4">
+            <div className="bg-red-50 border-l-4 border-red-400 p-4 animate-fade-in">
               <div className="flex">
                 <div className="ml-3">
                   <p className="text-sm text-red-700">{error}</p>
                 </div>
                 <button
                   onClick={clearError}
-                  className="ml-auto text-red-400 hover:text-red-600"
+                  className="ml-auto text-red-400 hover:text-red-600 px-2"
                 >
                   ×
                 </button>
@@ -99,7 +99,7 @@ const DashboardScreen = () => {
             />
           ) : (
             <div className="flex-1 flex items-center justify-center">
-              <div className="text-center">
+              <div className="text-center animate-fade-in">
                 <div className="mx-auto w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mb-4">
                   <svg className="w-8 h-8 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 7v10c0 2.21 1.79 4 4 4h8c2.21 0 4-1.79 4-4V7M4 7c0-2.21 1.79-4 4-4h8c2.21 0 4-1.79 4-4M4 7h16m-4 4v6m-4-6v6m-4-6v6" />
