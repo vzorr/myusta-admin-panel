@@ -7,7 +7,7 @@ module.exports = function(app) {
   
   // MyUsta backend proxy (localhost:3000) - handles /api/admin, /api/auth, etc.
   app.use(
-    '/api/myusta',
+    '/api/',
     createProxyMiddleware({
       target: 'http://localhost:3000',
       changeOrigin: true,
@@ -30,7 +30,7 @@ module.exports = function(app) {
 
   // Chat backend proxy (localhost:5000) - handles /api/v1/admin, /api/v1/*, etc.
   app.use(
-    '/api/chat',
+    '/api/v1/',
     createProxyMiddleware({
       target: 'http://localhost:5000',
       changeOrigin: true,

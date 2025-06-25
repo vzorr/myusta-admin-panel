@@ -5,8 +5,8 @@ const isDevelopment = process.env.NODE_ENV === 'development';
 // Base URLs for different environments
 const BASE_URLS = {
   development: {
-    myusta: '/api/myusta',     // Proxy to localhost:3000 (MyUsta backend)
-    chat: '/api/chat',         // Proxy to localhost:5000 (Chat backend)
+     myusta: process.env.REACT_APP_MYUSTA_BACKEND_URL || 'http://localhost:3000',
+    chat: process.env.REACT_APP_CHAT_BACKEND_URL || 'http://localhost:5000',
   },
   production: {
     myusta: process.env.REACT_APP_MYUSTA_BACKEND_URL || 'https://myusta.al/myusta-backend',
