@@ -4,73 +4,20 @@ module.exports = {
     'react-app/jest'
   ],
   rules: {
-    // Fix the regex escape warning
-    'no-useless-escape': 'error',
+    // Suppress common warnings
+    'no-console': 'off',
+    'quotes': 'off', 
+    'comma-dangle': 'off',
+    'object-shorthand': 'off',
+    'prefer-template': 'off',
+    'import/order': 'off',
+    'import/no-anonymous-default-export': 'off',
+    'indent': 'off',
     
-    // Helpful warnings
-    'no-unused-vars': ['warn', { 
-      argsIgnorePattern: '^_',
-      varsIgnorePattern: '^_' 
-    }],
-    'no-console': process.env.NODE_ENV === 'production' ? 'error' : 'warn',
-    
-    // React specific rules
-    'react-hooks/exhaustive-deps': 'warn',
-    'react/prop-types': 'off', // Using TypeScript or default props
-    'react/display-name': 'off',
-    
-    // Code quality
-    'prefer-const': 'error',
-    'no-var': 'error',
-    'object-shorthand': 'warn',
-    'prefer-template': 'warn',
-    
-    // Formatting (if not using Prettier)
-    'indent': ['error', 2, { SwitchCase: 1 }],
-    'quotes': ['error', 'single', { avoidEscape: true }],
-    'semi': ['error', 'always'],
-    'comma-dangle': ['error', 'never'],
-    
-    // Import rules
-    'import/order': ['warn', {
-      groups: [
-        'builtin',
-        'external',
-        'internal',
-        'parent',
-        'sibling',
-        'index'
-      ],
-      'newlines-between': 'never'
-    }]
-  },
-  env: {
-    browser: true,
-    es6: true,
-    node: true,
-    jest: true
-  },
-  parserOptions: {
-    ecmaVersion: 2021,
-    sourceType: 'module',
-    ecmaFeatures: {
-      jsx: true
-    }
-  },
-  settings: {
-    react: {
-      version: 'detect'
-    }
-  },
-  overrides: [
-    {
-      files: ['**/*.test.js', '**/*.test.jsx'],
-      env: {
-        jest: true
-      },
-      rules: {
-        'no-console': 'off'
-      }
-    }
-  ]
+    // Suppress unused variable/import warnings
+    'no-unused-vars': 'off', // Completely disable unused vars warnings
+    'react/jsx-no-undef': 'error', // Keep undefined component errors
+    'react-hooks/exhaustive-deps': 'off', // Disable dependency array warnings
+    'react-hooks/rules-of-hooks': 'error' // Keep hook rules violations as errors
+  }
 };

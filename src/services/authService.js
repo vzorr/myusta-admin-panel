@@ -1,9 +1,15 @@
-// src/services/authService.js
+// src/services/authService.js - Fixed for proxy
 import { API_ENDPOINTS, LOGIN_CREDENTIALS, APP_CONFIG } from '../utils/constants';
 
 class AuthService {
   constructor() {
-    this.baseUrl = API_ENDPOINTS.MYUSTA_BACKEND;
+    // In development, use empty string for proxy. In production, use full URL
+    this.baseUrl = process.env.NODE_ENV === 'development' ? '' : API_ENDPOINTS.MYUSTA_BACKEND;
+    
+    if (APP_CONFIG.DEBUG) {
+      console.log('AuthService baseUrl:', this.baseUrl);
+      console.log('Environment:', process.env.NODE_ENV);
+    }
   }
 
   async login(credentials = LOGIN_CREDENTIALS) {
@@ -15,7 +21,7 @@ class AuthService {
 
     const config = {
       method: 'POST',
-      mode: 'cors', // Explicitly set CORS mode
+      mode: 'cors',
       headers: { 
         'Content-Type': 'application/json',
         'Accept': 'application/json'
@@ -23,16 +29,20 @@ class AuthService {
       body: loginData
     };
 
+    // Construct URL - in development this will be '/api/auth/login', in production full URL
+    const url = this.baseUrl ? `${this.baseUrl}/api/auth/login` : '/api/auth/login';
+
     if (APP_CONFIG.DEBUG) {
       console.log('Login request:', {
-        url: `${this.baseUrl}/api/auth/login`,
+        url: url,
         data: JSON.parse(loginData),
-        config
+        config,
+        baseUrl: this.baseUrl
       });
     }
 
     try {
-      const response = await fetch(`${this.baseUrl}/api/auth/login`, config);
+      const response = await fetch(url, config);
       
       if (APP_CONFIG.DEBUG) {
         console.log('Response status:', response.status);
@@ -108,12 +118,13 @@ class AuthService {
     }
   }
 
+  // ... rest of your methods remain the same (logout, refreshToken, etc.)
+  
   async logout() {
     try {
       const token = this.getStoredToken();
       
       if (token) {
-        // Optional: Call logout endpoint if available
         const config = {
           method: 'POST',
           mode: 'cors',
@@ -123,8 +134,10 @@ class AuthService {
           }
         };
 
+        const url = this.baseUrl ? `${this.baseUrl}/api/auth/logout` : '/api/auth/logout';
+        
         try {
-          await fetch(`${this.baseUrl}/api/auth/logout`, config);
+          await fetch(url, config);
         } catch (error) {
           console.warn('Logout endpoint failed:', error);
         }
@@ -134,7 +147,6 @@ class AuthService {
       this.clearUserData();
       return { success: true };
     } catch (error) {
-      // Clear token anyway
       this.clearToken();
       this.clearUserData();
       return { success: true };
@@ -155,8 +167,10 @@ class AuthService {
       body: JSON.stringify({ token })
     };
 
+    const url = this.baseUrl ? `${this.baseUrl}/api/auth/refresh` : '/api/auth/refresh';
+
     try {
-      const response = await fetch(`${this.baseUrl}/api/auth/refresh`, config);
+      const response = await fetch(url, config);
       const responseData = await response.json();
       
       if (response.ok && responseData.success && responseData.result?.token) {
@@ -183,7 +197,6 @@ class AuthService {
   async validateToken(token) {
     if (!token) return false;
 
-    // Check if token is expired first
     if (this.isTokenExpired(token)) {
       return false;
     }
@@ -197,8 +210,10 @@ class AuthService {
       }
     };
 
+    const url = this.baseUrl ? `${this.baseUrl}/api/auth/validate` : '/api/auth/validate';
+
     try {
-      const response = await fetch(`${this.baseUrl}/api/auth/validate`, config);
+      const response = await fetch(url, config);
       return response.ok;
     } catch (error) {
       console.warn('Token validation failed:', error);
@@ -232,7 +247,6 @@ class AuthService {
     }
   }
 
-  // User data management methods
   storeUserData(userData) {
     if (typeof Storage !== "undefined") {
       localStorage.setItem('userData', JSON.stringify(userData));
@@ -277,7 +291,6 @@ class AuthService {
     }
   }
 
-  // Get user info from stored token
   getUserFromToken(token = null) {
     const tokenToUse = token || this.getStoredToken();
     if (!tokenToUse) return null;
@@ -301,7 +314,6 @@ class AuthService {
     return null;
   }
 
-  // Test the exact login configuration
   async testLogin() {
     const data = JSON.stringify({
       "emailOrPhone": "amirsohail680@gmail.com",
@@ -321,7 +333,8 @@ class AuthService {
     console.log('Testing login with exact configuration...');
     
     try {
-      const response = await fetch('https://myusta.al/myusta-backend/api/auth/login', config);
+      const url = this.baseUrl ? `${this.baseUrl}/api/auth/login` : '/api/auth/login';
+      const response = await fetch(url, config);
       const responseData = await response.json();
       
       console.log('Test login response:', JSON.stringify(responseData, null, 2));
@@ -332,7 +345,6 @@ class AuthService {
     }
   }
 
-  // Method to get authorization header for API calls
   getAuthHeader() {
     const token = this.getStoredToken();
     return token ? { 'Authorization': `Bearer ${token}` } : {};

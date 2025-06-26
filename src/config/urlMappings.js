@@ -1,12 +1,13 @@
-// src/config/urlMappings.js
+// src/config/urlMappings.js - Updated to use proxy in development
 
 const isDevelopment = process.env.NODE_ENV === 'development';
 
 // Base URLs for different environments
 const BASE_URLS = {
   development: {
-     myusta: process.env.REACT_APP_MYUSTA_BACKEND_URL || 'http://localhost:3000',
-    chat: process.env.REACT_APP_CHAT_BACKEND_URL || 'http://localhost:5000',
+    // Use empty strings to use relative paths (proxy)
+    myusta: '',
+    chat: '',
   },
   production: {
     myusta: process.env.REACT_APP_MYUSTA_BACKEND_URL || 'https://myusta.al/myusta-backend',
@@ -29,9 +30,9 @@ export const URL_MAPPINGS = {
   // Base URLs
   base: getCurrentUrls(),
   
-  // MyUsta backend endpoints (localhost:3000 with /api/admin)
+  // MyUsta backend endpoints
   myusta: {
-    // Admin endpoints - localhost:3000/api/admin/*
+    // Admin endpoints - /api/admin/* (proxied to localhost:3000)
     admin: {
       models: () => `${getCurrentUrls().myusta}/api/admin/models`,
       model: (modelName) => `${getCurrentUrls().myusta}/api/admin/models/${modelName}`,
@@ -45,7 +46,7 @@ export const URL_MAPPINGS = {
       bookings: () => `${getCurrentUrls().myusta}/api/admin/bookings`
     },
     
-    // Authentication endpoints - localhost:3000/api/auth/*
+    // Authentication endpoints - /api/auth/* (proxied to localhost:3000)
     auth: {
       login: () => `${getCurrentUrls().myusta}/api/auth/login`,
       logout: () => `${getCurrentUrls().myusta}/api/auth/logout`,
@@ -54,7 +55,7 @@ export const URL_MAPPINGS = {
       profile: () => `${getCurrentUrls().myusta}/api/auth/profile`
     },
     
-    // User endpoints - localhost:3000/api/users/*
+    // User endpoints - /api/users/* (proxied to localhost:3000)
     users: {
       list: (params = {}) => {
         const query = new URLSearchParams(params).toString();
@@ -66,7 +67,7 @@ export const URL_MAPPINGS = {
       profile: (userId) => `${getCurrentUrls().myusta}/api/users/${userId}/profile`
     },
     
-    // Service endpoints - localhost:3000/api/services/*
+    // Service endpoints - /api/services/* (proxied to localhost:3000)
     services: {
       list: () => `${getCurrentUrls().myusta}/api/services`,
       create: () => `${getCurrentUrls().myusta}/api/services`,
@@ -75,7 +76,7 @@ export const URL_MAPPINGS = {
       categories: () => `${getCurrentUrls().myusta}/api/services/categories`
     },
     
-    // Booking endpoints - localhost:3000/api/bookings/*
+    // Booking endpoints - /api/bookings/* (proxied to localhost:3000)
     bookings: {
       list: () => `${getCurrentUrls().myusta}/api/bookings`,
       create: () => `${getCurrentUrls().myusta}/api/bookings`,
@@ -85,9 +86,9 @@ export const URL_MAPPINGS = {
     }
   },
   
-  // Chat backend endpoints (localhost:5000 with /api/v1/admin)
+  // Chat backend endpoints
   chat: {
-    // Admin endpoints - localhost:5000/api/v1/admin/*
+    // Admin endpoints - /api/v1/admin/* (proxied to localhost:5000)
     admin: {
       models: () => `${getCurrentUrls().chat}/api/v1/admin/models`,
       model: (modelName) => `${getCurrentUrls().chat}/api/v1/admin/models/${modelName}`,
@@ -101,7 +102,7 @@ export const URL_MAPPINGS = {
       messages: () => `${getCurrentUrls().chat}/api/v1/admin/messages`
     },
     
-    // Regular chat endpoints - localhost:5000/api/v1/*
+    // Regular chat endpoints - /api/v1/* (proxied to localhost:5000)
     conversations: {
       list: () => `${getCurrentUrls().chat}/api/v1/conversations`,
       create: () => `${getCurrentUrls().chat}/api/v1/conversations`,
@@ -171,19 +172,24 @@ export const urlHelpers = {
 // Debug helper
 export const debugUrls = () => {
   if (process.env.NODE_ENV === 'development') {
-    console.group('🔗 API Routes Debug');
+    console.group('🔗 API Routes Debug (Updated for Proxy)');
     console.log('Environment:', process.env.NODE_ENV);
     console.log('Base URLs:', getCurrentUrls());
+    console.log('Using proxy:', getCurrentUrls().myusta === '');
     console.log('');
-    console.log('MyUsta Routes (localhost:3000):');
+    console.log('MyUsta Routes (via proxy):');
     console.log('  Admin Models:', URL_MAPPINGS.myusta.admin.models());
     console.log('  Auth Login:', URL_MAPPINGS.myusta.auth.login());
     console.log('  Users List:', URL_MAPPINGS.myusta.users.list());
     console.log('');
-    console.log('Chat Routes (localhost:5000):');
+    console.log('Chat Routes (via proxy):');
     console.log('  Admin Models:', URL_MAPPINGS.chat.admin.models());
     console.log('  Conversations:', URL_MAPPINGS.chat.conversations.list());
     console.log('  Messages:', URL_MAPPINGS.chat.messages.list());
+    console.log('');
+    console.log('💡 In development, these will be proxied:');
+    console.log('  /api/* → http://localhost:3000/*');
+    console.log('  /api/v1/* → http://localhost:5000/*');
     console.groupEnd();
   }
 };
