@@ -17,3 +17,226 @@ body {
   color: #ef4444;
   font-weight: bold;
 }
+
+/* Add this to src/styles/globals.css for KPI card animations */
+
+/* KPI Card animations */
+@keyframes kpi-card-enter {
+  from {
+    opacity: 0;
+    transform: translateY(20px) scale(0.95);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+@keyframes kpi-card-hover {
+  from {
+    transform: scale(1);
+  }
+  to {
+    transform: scale(1.02);
+  }
+}
+
+@keyframes pulse-glow {
+  0%, 100% {
+    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+  }
+  50% {
+    box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+  }
+}
+
+@keyframes fade-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes slide-up {
+  from {
+    opacity: 0;
+    transform: translateY(30px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes number-counter {
+  from {
+    transform: translateY(20px);
+    opacity: 0;
+  }
+  to {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
+
+/* Apply animations */
+.kpi-card-enter {
+  animation: kpi-card-enter 0.5s ease-out forwards;
+}
+
+.kpi-card-stagger-1 {
+  animation-delay: 0.1s;
+}
+
+.kpi-card-stagger-2 {
+  animation-delay: 0.2s;
+}
+
+.kpi-card-stagger-3 {
+  animation-delay: 0.3s;
+}
+
+.kpi-card-stagger-4 {
+  animation-delay: 0.4s;
+}
+
+.kpi-card-stagger-5 {
+  animation-delay: 0.5s;
+}
+
+.kpi-card-stagger-6 {
+  animation-delay: 0.6s;
+}
+
+.kpi-card-stagger-7 {
+  animation-delay: 0.7s;
+}
+
+.kpi-card-stagger-8 {
+  animation-delay: 0.8s;
+}
+
+.animate-fade-in {
+  animation: fade-in 0.3s ease-in-out;
+}
+
+.animate-slide-up {
+  animation: slide-up 0.6s ease-out;
+}
+
+.animate-number-counter {
+  animation: number-counter 0.8s ease-out;
+}
+
+.animate-pulse-glow {
+  animation: pulse-glow 2s ease-in-out infinite;
+}
+
+/* Hover effects for KPI cards */
+.kpi-card:hover {
+  animation: kpi-card-hover 0.2s ease-out forwards;
+}
+
+/* Loading skeleton animations */
+@keyframes skeleton-loading {
+  0% {
+    background-position: -200px 0;
+  }
+  100% {
+    background-position: calc(200px + 100%) 0;
+  }
+}
+
+.skeleton-loading {
+  background: linear-gradient(90deg, #f0f0f0 25%, #e0e0e0 50%, #f0f0f0 75%);
+  background-size: 200px 100%;
+  animation: skeleton-loading 1.5s infinite;
+}
+
+/* Growth indicator animations */
+@keyframes growth-up {
+  from {
+    transform: translateY(10px);
+    opacity: 0;
+  }
+  to {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
+
+@keyframes growth-down {
+  from {
+    transform: translateY(-10px);
+    opacity: 0;
+  }
+  to {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
+
+.growth-indicator-up {
+  animation: growth-up 0.5s ease-out;
+}
+
+.growth-indicator-down {
+  animation: growth-down 0.5s ease-out;
+}
+
+/* Chart loading animation */
+@keyframes chart-loading {
+  0% {
+    opacity: 0.4;
+  }
+  50% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0.4;
+  }
+}
+
+.chart-loading {
+  animation: chart-loading 1.5s ease-in-out infinite;
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+  .kpi-card-enter {
+    animation-duration: 0.3s;
+  }
+  
+  .kpi-card:hover {
+    transform: none; /* Disable hover transform on mobile */
+  }
+}
+
+/* High contrast mode support */
+@media (prefers-contrast: high) {
+  .kpi-card {
+    border-width: 2px;
+  }
+}
+
+/* Reduced motion support */
+@media (prefers-reduced-motion: reduce) {
+  .kpi-card-enter,
+  .kpi-card-hover,
+  .animate-fade-in,
+  .animate-slide-up,
+  .animate-number-counter,
+  .animate-pulse-glow,
+  .skeleton-loading,
+  .growth-indicator-up,
+  .growth-indicator-down,
+  .chart-loading {
+    animation: none;
+  }
+  
+  .kpi-card {
+    transition: none;
+  }
+}

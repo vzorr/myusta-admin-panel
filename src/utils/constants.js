@@ -97,7 +97,8 @@ export const WINDOW_TYPES = {
   TABLE_SCHEMA: 'table_schema', 
   RECORD_DETAIL: 'record_detail',
   SEARCH_RESULTS: 'search_results',
-  CREATE_RECORD: 'create_record'
+  CREATE_RECORD: 'create_record',
+  KPI_DETAIL: 'kpi_detail'
 };
 
 // Pagination defaults
@@ -198,11 +199,216 @@ export const USER_ROLES = {
   USTA: 'usta'
 };
 
-// Window default sizes and positions
+// Window default sizes and positions - Updated to include KPI detail
 export const WINDOW_DEFAULTS = {
   TABLE_DATA: { width: 1000, height: 700 },
   TABLE_SCHEMA: { width: 800, height: 600 },
   RECORD_DETAIL: { width: 600, height: 500 },
   SEARCH_RESULTS: { width: 900, height: 600 },
-  CREATE_RECORD: { width: 500, height: 400 }
+  CREATE_RECORD: { width: 500, height: 400 },
+  KPI_DETAIL: { width: 900, height: 650 }
+}; 
+
+
+// KPI Configuration constants
+export const KPI_CONFIG = {
+  REFRESH_INTERVAL: 300000, // 5 minutes
+  CHART_COLORS: [
+    '#3B82F6', // blue
+    '#10B981', // emerald
+    '#F59E0B', // amber
+    '#EF4444', // red
+    '#8B5CF6', // violet
+    '#06B6D4', // cyan
+    '#84CC16', // lime
+    '#F97316'  // orange
+  ],
+  METRICS: {
+    CUSTOMERS: {
+      id: 'total_customers',
+      title: 'Total Customers',
+      description: 'Total registered customers',
+      icon: 'Users',
+      color: 'blue'
+    },
+    USTAS: {
+      id: 'total_ustas',
+      title: 'Total Ustas',
+      description: 'Service providers',
+      icon: 'UserCheck',
+      color: 'green'
+    },
+    JOBS: {
+      id: 'total_jobs',
+      title: 'Total Jobs',
+      description: 'All job bookings',
+      icon: 'Briefcase',
+      color: 'purple'
+    },
+    OPEN_JOBS: {
+      id: 'open_jobs',
+      title: 'Open Jobs',
+      description: 'Jobs waiting for assignment',
+      icon: 'Clock',
+      color: 'orange'
+    },
+    ACTIVE_JOBS: {
+      id: 'active_jobs',
+      title: 'Active Jobs',
+      description: 'Currently in progress',
+      icon: 'TrendingUp',
+      color: 'indigo'
+    },
+    COMPLETED_JOBS: {
+      id: 'completed_jobs',
+      title: 'Completed Jobs',
+      description: 'Successfully completed',
+      icon: 'CheckCircle',
+      color: 'emerald'
+    },
+    CANCELLED_JOBS: {
+      id: 'cancelled_jobs',
+      title: 'Cancelled Jobs',
+      description: 'Cancelled bookings',
+      icon: 'XCircle',
+      color: 'red'
+    },
+    REVENUE: {
+      id: 'revenue',
+      title: 'Total Revenue',
+      description: 'Total earnings',
+      icon: 'DollarSign',
+      color: 'yellow'
+    },
+    SERVICES: {
+      id: 'services',
+      title: 'Services',
+      description: 'Available services',
+      icon: 'Star',
+      color: 'pink'
+    }
+  }
+};
+
+// Job status configurations
+export const JOB_STATUSES = {
+  OPEN: {
+    value: 'open',
+    label: 'Open',
+    color: 'orange',
+    description: 'Job posted, waiting for Usta assignment'
+  },
+  ASSIGNED: {
+    value: 'assigned',
+    label: 'Assigned',
+    color: 'blue',
+    description: 'Usta assigned, waiting to start'
+  },
+  IN_PROGRESS: {
+    value: 'in_progress',
+    label: 'In Progress',
+    color: 'indigo',
+    description: 'Work currently being performed'
+  },
+  COMPLETED: {
+    value: 'completed',
+    label: 'Completed',
+    color: 'green',
+    description: 'Job finished successfully'
+  },
+  CANCELLED: {
+    value: 'cancelled',
+    label: 'Cancelled',
+    color: 'red',
+    description: 'Job cancelled by customer or system'
+  },
+  DISPUTED: {
+    value: 'disputed',
+    label: 'Disputed',
+    color: 'yellow',
+    description: 'Payment or quality dispute'
+  }
+};
+
+// Service categories
+export const SERVICE_CATEGORIES = {
+  CLEANING: {
+    id: 'cleaning',
+    name: 'Cleaning',
+    icon: '🧹',
+    color: 'blue'
+  },
+  PLUMBING: {
+    id: 'plumbing',
+    name: 'Plumbing',
+    icon: '🔧',
+    color: 'cyan'
+  },
+  ELECTRICAL: {
+    id: 'electrical',
+    name: 'Electrical',
+    icon: '⚡',
+    color: 'yellow'
+  },
+  PAINTING: {
+    id: 'painting',
+    name: 'Painting',
+    icon: '🎨',
+    color: 'purple'
+  },
+  GARDENING: {
+    id: 'gardening',
+    name: 'Gardening',
+    icon: '🌱',
+    color: 'green'
+  },
+  APPLIANCE_REPAIR: {
+    id: 'appliance_repair',
+    name: 'Appliance Repair',
+    icon: '🔨',
+    color: 'orange'
+  },
+  CARPENTRY: {
+    id: 'carpentry',
+    name: 'Carpentry',
+    icon: '🪵',
+    color: 'amber'
+  },
+  BEAUTY: {
+    id: 'beauty',
+    name: 'Beauty & Wellness',
+    icon: '💄',
+    color: 'pink'
+  }
+};
+
+// Dashboard layout configurations
+export const DASHBOARD_CONFIG = {
+  KPI_CARDS: {
+    COLUMNS: {
+      mobile: 1,
+      tablet: 2,
+      desktop: 3,
+      wide: 4
+    },
+    ANIMATION: {
+      duration: 200,
+      stagger: 50
+    }
+  },
+  REFRESH_INTERVALS: {
+    FAST: 60000,    // 1 minute
+    NORMAL: 300000, // 5 minutes
+    SLOW: 900000    // 15 minutes
+  }
+};
+
+// Analytics time periods
+export const TIME_PERIODS = {
+  TODAY: 'today',
+  WEEK: 'week',
+  MONTH: 'month',
+  QUARTER: 'quarter',
+  YEAR: 'year',
+  CUSTOM: 'custom'
 };
