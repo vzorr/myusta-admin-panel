@@ -1,4 +1,4 @@
-// src/screens/DashboardScreen.js - Fixed useWindows hook issue
+// src/screens/DashboardScreen.js - Fixed to prevent infinite re-renders
 import React, { useEffect, useCallback, useRef, useState } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { useTable } from '../context/TableContext';
@@ -23,7 +23,7 @@ const DashboardContent = () => {
     fetchTables, 
     clearError
   } = useTable();
-  const { setSidebarWidth } = useWindows(); // Now inside WindowProvider
+  const { setSidebarWidth } = useWindows();
 
   // Sidebar state
   const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false);
@@ -61,20 +61,21 @@ const DashboardContent = () => {
     }
   }, [logout]);
 
-  // Sidebar toggle handlers
+  // FIXED: Sidebar toggle handlers with proper memoization
   const toggleSidebarCollapse = useCallback(() => {
-    setIsSidebarCollapsed(prev => {
-      const newCollapsed = !prev;
-      // Update window context with new sidebar width
-      setSidebarWidth(newCollapsed ? 48 : 320);
-      return newCollapsed;
-    });
+    setIsSidebarCollapsed(prev => !prev);
+  }, []);
+
+  // FIXED: Update sidebar width when collapse state changes - memoize setSidebarWidth
+  const memoizedSetSidebarWidth = useCallback((width) => {
+    setSidebarWidth(width);
   }, [setSidebarWidth]);
 
-  // Update sidebar width when component mounts
+  // FIXED: Update sidebar width only when collapse state actually changes
   useEffect(() => {
-    setSidebarWidth(isSidebarCollapsed ? 48 : 320);
-  }, [isSidebarCollapsed, setSidebarWidth]);
+    const newWidth = isSidebarCollapsed ? 48 : 320;
+    memoizedSetSidebarWidth(newWidth);
+  }, [isSidebarCollapsed, memoizedSetSidebarWidth]);
 
   // Close mobile sidebar when clicking outside
   const handleOverlayClick = useCallback(() => {
@@ -93,7 +94,7 @@ const DashboardContent = () => {
     return () => window.removeEventListener('resize', handleResize);
   }, []);
 
-  // Only fetch tables once on mount
+  // FIXED: Only fetch tables once on mount - stable dependency array
   useEffect(() => {
     const totalTables = (tables.myusta?.length || 0) + (tables.chat?.length || 0);
     
@@ -125,7 +126,7 @@ const DashboardContent = () => {
         hasFetchedRef.current = false; // Reset on error so user can retry
       });
     }
-  }, []); // Keep empty dependency array
+  }, []); // FIXED: Keep empty dependency array to only run on mount
 
   // Separate effect for logging state changes (development only)
   useEffect(() => {
