@@ -19,16 +19,14 @@ const initialState = {
 };
 
 const tableReducer = (state, action) => {
-  logger.debug('TableContext reducer', {
-    action: action.type,
-    payload: action.payload,
-    currentState: {
-      myustaTablesCount: state.tables.myusta.length,
-      chatTablesCount: state.tables.chat.length,
-      loading: state.loading,
-      hasError: !!state.error
-    }
-  }, 'REDUCER');
+  // Reduce logging to prevent console spam
+  if (process.env.NODE_ENV === 'development') {
+    console.log(`TableContext: ${action.type}`, {
+      myustaCount: action.type === 'SET_TABLES' ? action.payload.myusta?.length : state.tables.myusta.length,
+      chatCount: action.type === 'SET_TABLES' ? action.payload.chat?.length : state.tables.chat.length,
+      loading: action.type === 'SET_LOADING' ? action.payload : state.loading
+    });
+  }
 
   switch (action.type) {
     case 'SET_LOADING':
@@ -46,9 +44,7 @@ const tableReducer = (state, action) => {
     case 'SET_TABLES':
       logger.success('Tables set in context', {
         myustaCount: action.payload.myusta?.length || 0,
-        chatCount: action.payload.chat?.length || 0,
-        myustaTables: action.payload.myusta?.map(t => t.name) || [],
-        chatTables: action.payload.chat?.map(t => t.name) || []
+        chatCount: action.payload.chat?.length || 0
       });
       return {
         ...state,
@@ -56,18 +52,11 @@ const tableReducer = (state, action) => {
         loading: false
       };
     case 'SET_SELECTED_TABLE':
-      logger.table('Table selected', {
-        tableName: action.payload?.name,
-        backend: action.payload?.backend
-      });
       return {
         ...state,
         selectedTable: action.payload
       };
     case 'SET_TABLE_DATA':
-      logger.success('Table data set', {
-        recordsCount: action.payload?.length || 0
-      });
       return {
         ...state,
         data: action.payload,
@@ -80,7 +69,6 @@ const tableReducer = (state, action) => {
         loading: false
       };
     case 'CLEAR_ERROR':
-      logger.info('Error cleared from context');
       return {
         ...state,
         error: null
@@ -100,12 +88,7 @@ export const TableProvider = ({ children }) => {
   const [state, dispatch] = useReducer(tableReducer, initialState);
   const { token } = useAuth();
 
-  logger.table('TableProvider render', {
-    hasToken: !!token,
-    tokenLength: token?.length || 0
-  }, 'PROVIDER');
-
-  // Stable tableService reference
+  // FIXED: Stable tableService reference that doesn't change unless token changes
   const tableService = useMemo(() => {
     if (token) {
       return new TableService(token);
@@ -113,113 +96,71 @@ export const TableProvider = ({ children }) => {
     return null;
   }, [token]);
 
-  // Stable fetchTables function with useCallback
+  // FIXED: Stable fetchTables function - removed state.loading dependency to prevent loops
   const fetchTables = useCallback(async () => {
     if (!tableService) {
-      logger.warn('No tableService available, skipping fetchTables');
+      console.warn('No tableService available, skipping fetchTables');
       return;
     }
 
-    // Prevent multiple concurrent fetches
-    if (state.loading) {
-      logger.debug('Fetch already in progress, skipping');
-      return;
-    }
-
-    logger.separator('FETCH TABLES INITIATED');
-    logger.table('Starting fetchTables', {
-      hasToken: !!token,
-      currentTablesCount: {
-        myusta: state.tables.myusta.length,
-        chat: state.tables.chat.length
-      }
-    });
+    console.log('🚀 TableContext: Starting fetchTables');
 
     dispatch({ type: 'SET_LOADING', payload: true });
     dispatch({ type: 'CLEAR_ERROR' });
     
     try {
-      logger.time('fetchTables');
       const tablesData = await tableService.getTables();
-      logger.timeEnd('fetchTables');
       
-      logger.success('Tables fetched successfully', {
+      console.log('✅ Tables fetched successfully:', {
         myustaCount: tablesData.myusta?.length || 0,
-        chatCount: tablesData.chat?.length || 0,
-        totalCount: (tablesData.myusta?.length || 0) + (tablesData.chat?.length || 0)
+        chatCount: tablesData.chat?.length || 0
       });
       
       dispatch({ type: 'SET_TABLES', payload: tablesData });
     } catch (error) {
-      logger.error('Failed to fetch tables', {
-        error: error.message,
-        stack: error.stack
-      });
+      console.error('❌ Failed to fetch tables:', error.message);
       dispatch({ type: 'SET_ERROR', payload: error.message });
     }
-  }, [tableService, token, state.loading]); // Include state.loading to prevent concurrent calls
+  }, [tableService]); // Only depend on tableService, not loading state
 
   // Other stable functions
   const selectTable = useCallback((table) => {
-    logger.table('Selecting table', {
-      tableName: table?.name,
-      backend: table?.backend,
-      hasAttributes: !!table?.attributes?.length
-    });
     dispatch({ type: 'SET_SELECTED_TABLE', payload: table });
   }, []);
 
   const fetchTableData = useCallback(async (table, options = {}) => {
     if (!tableService) {
-      logger.warn('No tableService available for fetchTableData');
+      console.warn('No tableService available for fetchTableData');
       return { success: false, error: 'No service available' };
     }
-
-    logger.table('Fetching table data', {
-      tableName: table?.name,
-      backend: table?.backend,
-      options
-    });
 
     dispatch({ type: 'SET_LOADING', payload: true });
     dispatch({ type: 'CLEAR_ERROR' });
     
     try {
-      logger.time(`fetchTableData-${table.name}`);
       const result = await tableService.getTableData(table, options);
-      logger.timeEnd(`fetchTableData-${table.name}`);
       
       if (result.success) {
-        logger.success('Table data fetched successfully', {
-          recordsCount: result.records?.length || 0,
-          pagination: result.pagination
-        });
         dispatch({ type: 'SET_TABLE_DATA', payload: result.records });
         return result;
       } else {
         throw new Error(result.error);
       }
     } catch (error) {
-      logger.error('Failed to fetch table data', {
-        tableName: table?.name,
-        error: error.message
-      });
       dispatch({ type: 'SET_ERROR', payload: error.message });
       return { success: false, error: error.message };
     }
   }, [tableService]);
 
   const clearError = useCallback(() => {
-    logger.info('Clearing error from TableContext');
     dispatch({ type: 'CLEAR_ERROR' });
   }, []);
 
   const clearSearch = useCallback(() => {
-    logger.info('Clearing search results');
     dispatch({ type: 'CLEAR_SEARCH' });
   }, []);
 
-  // Memoize the context value to prevent unnecessary re-renders
+  // FIXED: Memoize the context value to prevent unnecessary re-renders
   const value = useMemo(() => ({
     ...state,
     fetchTables,
