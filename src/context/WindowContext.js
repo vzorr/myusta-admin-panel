@@ -1,4 +1,4 @@
-// src/context/WindowContext.js
+// src/context/WindowContext.js - Updated with full area maximization
 import React, { createContext, useContext, useReducer } from 'react';
 import { nanoid } from 'nanoid';
 
@@ -15,12 +15,22 @@ export const WINDOW_TYPES = {
 const initialState = {
   windows: [],
   activeWindowId: null,
-  cascadeOffset: 0
+  cascadeOffset: 0,
+  sidebarWidth: 320 // Default sidebar width
 };
 
 const windowReducer = (state, action) => {
   switch (action.type) {
+    case 'SET_SIDEBAR_WIDTH':
+      return {
+        ...state,
+        sidebarWidth: action.payload.width
+      };
+
     case 'OPEN_WINDOW':
+      const containerWidth = window.innerWidth - state.sidebarWidth;
+      const containerHeight = window.innerHeight - 100; // Account for header/taskbar
+      
       const newWindow = {
         id: action.payload.id || nanoid(),
         type: action.payload.type,
@@ -34,7 +44,9 @@ const windowReducer = (state, action) => {
         size: action.payload.size || { width: 800, height: 600 },
         isMinimized: false,
         isMaximized: false,
-        zIndex: Date.now()
+        zIndex: Date.now(),
+        containerWidth,
+        containerHeight
       };
 
       return {
@@ -88,6 +100,9 @@ const windowReducer = (state, action) => {
       };
 
     case 'MAXIMIZE_WINDOW':
+      const containerWidtht = window.innerWidth - state.sidebarWidth;
+      const containerHeightt = window.innerHeight - 100;
+      
       return {
         ...state,
         windows: state.windows.map(window =>
@@ -97,14 +112,19 @@ const windowReducer = (state, action) => {
               isMaximized: !window.isMaximized, 
               isMinimized: false,
               ...(window.isMaximized 
-                ? { position: window.originalPosition, size: window.originalSize }
+                ? { 
+                  position: window.originalPosition || { x: 50, y: 50 }, 
+                  size: window.originalSize || { width: 800, height: 600 }
+                }
                 : { 
                   originalPosition: window.position, 
                   originalSize: window.size,
                   position: { x: 0, y: 0 },
-                  size: { width: window.parentWidth || 1200, height: window.parentHeight || 800 }
+                  size: { width: containerWidtht, height: containerHeightt }
                 }
-              )
+              ),
+              containerWidtht,
+              containerHeightt
             }
             : window
         )
@@ -141,6 +161,9 @@ const windowReducer = (state, action) => {
       };
 
     case 'CASCADE_WINDOWS':
+      const cascadeContainerWidth = window.innerWidth - state.sidebarWidth;
+      const cascadeContainerHeight = window.innerHeight - 100;
+      
       return {
         ...state,
         windows: state.windows.map((window, index) => ({
@@ -150,7 +173,9 @@ const windowReducer = (state, action) => {
             y: 50 + index * 30
           },
           isMinimized: false,
-          isMaximized: false
+          isMaximized: false,
+          containerWidth: cascadeContainerWidth,
+          containerHeight: cascadeContainerHeight
         })),
         cascadeOffset: state.windows.length
       };
@@ -159,10 +184,13 @@ const windowReducer = (state, action) => {
       const windowCount = state.windows.length;
       if (windowCount === 0) return state;
 
+      const tileContainerWidth = window.innerWidth - state.sidebarWidth;
+      const tileContainerHeight = window.innerHeight - 100;
+      
       const cols = Math.ceil(Math.sqrt(windowCount));
       const rows = Math.ceil(windowCount / cols);
-      const windowWidth = Math.floor(1200 / cols);
-      const windowHeight = Math.floor(800 / rows);
+      const windowWidth = Math.floor(tileContainerWidth / cols);
+      const windowHeight = Math.floor(tileContainerHeight / rows);
 
       return {
         ...state,
@@ -181,7 +209,9 @@ const windowReducer = (state, action) => {
               height: windowHeight - 10
             },
             isMinimized: false,
-            isMaximized: false
+            isMaximized: false,
+            containerWidth: tileContainerWidth,
+            containerHeight: tileContainerHeight
           };
         })
       };
@@ -204,6 +234,19 @@ const windowReducer = (state, action) => {
         )
       };
 
+    case 'UPDATE_CONTAINER_SIZE':
+      const updatedContainerWidth = window.innerWidth - state.sidebarWidth;
+      const updatedContainerHeight = window.innerHeight - 100;
+      
+      return {
+        ...state,
+        windows: state.windows.map(window => ({
+          ...window,
+          containerWidth: updatedContainerWidth,
+          containerHeight: updatedContainerHeight
+        }))
+      };
+
     default:
       return state;
   }
@@ -211,6 +254,13 @@ const windowReducer = (state, action) => {
 
 export const WindowProvider = ({ children }) => {
   const [state, dispatch] = useReducer(windowReducer, initialState);
+
+  // Update sidebar width for window calculations
+  const setSidebarWidth = (width) => {
+    dispatch({ type: 'SET_SIDEBAR_WIDTH', payload: { width } });
+    // Also update existing windows' container size
+    dispatch({ type: 'UPDATE_CONTAINER_SIZE' });
+  };
 
   const openWindow = (windowConfig) => {
     dispatch({ type: 'OPEN_WINDOW', payload: windowConfig });
@@ -264,6 +314,16 @@ export const WindowProvider = ({ children }) => {
     dispatch({ type: 'UPDATE_WINDOW_DATA', payload: { windowId, data } });
   };
 
+  // Update container size when window resizes
+  React.useEffect(() => {
+    const handleResize = () => {
+      dispatch({ type: 'UPDATE_CONTAINER_SIZE' });
+    };
+
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
+
   // Helper methods
   const getWindow = (windowId) => {
     return state.windows.find(w => w.id === windowId);
@@ -283,6 +343,7 @@ export const WindowProvider = ({ children }) => {
 
   const value = {
     ...state,
+    setSidebarWidth,
     openWindow,
     closeWindow,
     setActiveWindow,

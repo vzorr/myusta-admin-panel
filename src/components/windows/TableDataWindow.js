@@ -1,4 +1,4 @@
-// src/components/windows/TableDataWindow.js
+// src/components/windows/TableDataWindow.js - Updated with font size controls
 import React, { useState, useEffect } from 'react';
 import { 
   RefreshCw, 
@@ -13,7 +13,10 @@ import {
   ChevronRight,
   MoreVertical,
   Eye,
-  Download
+  Download,
+  ZoomIn,
+  ZoomOut,
+  Type
 } from 'lucide-react';
 import { useTable } from '../../context/TableContext';
 import { useWindows, WINDOW_TYPES } from '../../context/WindowContext';
@@ -22,7 +25,7 @@ import { useAuth } from '../../context/AuthContext';
 
 const TableDataWindow = ({ window }) => {
   const { token } = useAuth();
-  const { updateWindowData } = useWindows();
+  const { updateWindowData, openWindow } = useWindows();
   const [tableService] = useState(() => new TableService(token));
   
   const [data, setData] = useState([]);
@@ -36,6 +39,15 @@ const TableDataWindow = ({ window }) => {
   const [editingRow, setEditingRow] = useState(null);
   const [editData, setEditData] = useState({});
   const [selectedRows, setSelectedRows] = useState(new Set());
+  
+  // Font size state
+  const [fontSize, setFontSize] = useState('text-sm'); // Default size
+  const fontSizes = [
+    { label: 'XS', value: 'text-xs', name: 'Extra Small' },
+    { label: 'SM', value: 'text-sm', name: 'Small' },
+    { label: 'MD', value: 'text-base', name: 'Medium' },
+    { label: 'LG', value: 'text-lg', name: 'Large' }
+  ];
 
   const { table } = window;
 
@@ -57,7 +69,6 @@ const TableDataWindow = ({ window }) => {
         setData(result.records);
         setPagination(result.pagination);
         
-        // Update window data
         updateWindowData(window.id, {
           ...window.data,
           ...options,
@@ -137,7 +148,6 @@ const TableDataWindow = ({ window }) => {
   };
 
   const handleViewRecord = (row) => {
-    const { openWindow } = useWindows();
     openWindow({
       type: WINDOW_TYPES.RECORD_DETAIL,
       title: `${table.displayName} - Record #${row.id}`,
@@ -156,6 +166,24 @@ const TableDataWindow = ({ window }) => {
     }
     
     return value.toString();
+  };
+
+  const increaseFontSize = () => {
+    const currentIndex = fontSizes.findIndex(size => size.value === fontSize);
+    if (currentIndex < fontSizes.length - 1) {
+      setFontSize(fontSizes[currentIndex + 1].value);
+    }
+  };
+
+  const decreaseFontSize = () => {
+    const currentIndex = fontSizes.findIndex(size => size.value === fontSize);
+    if (currentIndex > 0) {
+      setFontSize(fontSizes[currentIndex - 1].value);
+    }
+  };
+
+  const getCurrentFontSizeLabel = () => {
+    return fontSizes.find(size => size.value === fontSize)?.label || 'SM';
   };
 
   const columns = data.length > 0 ? Object.keys(data[0]) : table.attributes || [];
@@ -187,6 +215,32 @@ const TableDataWindow = ({ window }) => {
         </div>
 
         <div className="flex items-center space-x-2">
+          {/* Font Size Controls */}
+          <div className="flex items-center space-x-1 border border-gray-300 rounded-md">
+            <button
+              onClick={decreaseFontSize}
+              disabled={fontSize === fontSizes[0].value}
+              className="p-1 hover:bg-gray-100 disabled:opacity-50 disabled:cursor-not-allowed"
+              title="Decrease font size"
+            >
+              <ZoomOut className="w-3 h-3" />
+            </button>
+            
+            <div className="flex items-center px-2 py-1 text-xs font-medium text-gray-700 border-x border-gray-300">
+              <Type className="w-3 h-3 mr-1" />
+              {getCurrentFontSizeLabel()}
+            </div>
+            
+            <button
+              onClick={increaseFontSize}
+              disabled={fontSize === fontSizes[fontSizes.length - 1].value}
+              className="p-1 hover:bg-gray-100 disabled:opacity-50 disabled:cursor-not-allowed"
+              title="Increase font size"
+            >
+              <ZoomIn className="w-3 h-3" />
+            </button>
+          </div>
+
           <span className="text-sm text-gray-600">
             {pagination.totalItems || 0} records
           </span>
@@ -230,7 +284,7 @@ const TableDataWindow = ({ window }) => {
         </div>
       )}
 
-      {/* Table Content */}
+      {/* Table Content with dynamic font size */}
       <div className="flex-1 overflow-auto">
         {loading && data.length === 0 ? (
           <div className="flex items-center justify-center h-full">
@@ -279,7 +333,7 @@ const TableDataWindow = ({ window }) => {
                 {columns.map((column) => (
                   <th
                     key={column}
-                    className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100"
+                    className={`px-4 py-3 text-left font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100 ${fontSize === 'text-xs' ? 'text-xs' : fontSize === 'text-sm' ? 'text-xs' : fontSize === 'text-base' ? 'text-sm' : 'text-base'}`}
                     onClick={() => handleSort(column)}
                   >
                     <div className="flex items-center space-x-1">
@@ -292,7 +346,7 @@ const TableDataWindow = ({ window }) => {
                     </div>
                   </th>
                 ))}
-                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                <th className={`px-4 py-3 text-left font-medium text-gray-500 uppercase tracking-wider ${fontSize === 'text-xs' ? 'text-xs' : fontSize === 'text-sm' ? 'text-xs' : fontSize === 'text-base' ? 'text-sm' : 'text-base'}`}>
                   Actions
                 </th>
               </tr>
@@ -317,7 +371,7 @@ const TableDataWindow = ({ window }) => {
                     />
                   </td>
                   {columns.map((column) => (
-                    <td key={column} className="px-4 py-3 text-sm">
+                    <td key={column} className={`px-4 py-3 ${fontSize}`}>
                       {editingRow === row.id ? (
                         <input
                           type="text"
@@ -326,7 +380,7 @@ const TableDataWindow = ({ window }) => {
                             ...prev,
                             [column]: e.target.value
                           }))}
-                          className="w-full px-2 py-1 border border-gray-300 rounded text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                          className={`w-full px-2 py-1 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500 ${fontSize}`}
                         />
                       ) : (
                         <span 
@@ -339,7 +393,7 @@ const TableDataWindow = ({ window }) => {
                       )}
                     </td>
                   ))}
-                  <td className="px-4 py-3 text-sm">
+                  <td className={`px-4 py-3 ${fontSize}`}>
                     <div className="flex items-center space-x-2">
                       {editingRow === row.id ? (
                         <>
@@ -402,6 +456,7 @@ const TableDataWindow = ({ window }) => {
             Showing {((pagination.currentPage - 1) * pagination.pageSize) + 1} to{' '}
             {Math.min(pagination.currentPage * pagination.pageSize, pagination.totalItems)} of{' '}
             {pagination.totalItems} records
+            <span className="ml-2 text-gray-400">• Font: {getCurrentFontSizeLabel()}</span>
           </div>
           <div>
             {selectedRows.size > 0 && (

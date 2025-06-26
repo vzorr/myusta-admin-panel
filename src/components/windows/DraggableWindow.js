@@ -1,4 +1,4 @@
-// src/components/windows/DraggableWindow.js
+// src/components/windows/DraggableWindow.js - Updated with smaller title bar
 import React from 'react';
 import { useWindows, WINDOW_TYPES } from '../../context/WindowContext';
 
@@ -67,8 +67,8 @@ const DraggableWindow = ({ window, children }) => {
   React.useEffect(() => {
     const handleMouseMove = (e) => {
       if (isDragging && !window.isMaximized) {
-        const parentWidth = window.parentWidth || window.innerWidth || 1200;
-        const parentHeight = window.parentHeight || window.innerHeight || 800;
+        const parentWidth = window.innerWidth || 1200;
+        const parentHeight = window.innerHeight || 800;
         
         const newX = Math.max(0, Math.min(e.clientX - dragStart.x, parentWidth - window.size.width));
         const newY = Math.max(0, Math.min(e.clientY - dragStart.y, parentHeight - window.size.height));
@@ -78,8 +78,8 @@ const DraggableWindow = ({ window, children }) => {
       if (isResizing && !window.isMaximized) {
         const deltaX = e.clientX - resizeStart.x;
         const deltaY = e.clientY - resizeStart.y;
-        const parentWidth = window.parentWidth || window.innerWidth || 1200;
-        const parentHeight = window.parentHeight || window.innerHeight || 800;
+        const parentWidth = window.innerWidth || 1200;
+        const parentHeight = window.innerHeight || 800;
         
         const newWidth = Math.max(400, Math.min(resizeStart.width + deltaX, parentWidth));
         const newHeight = Math.max(300, Math.min(resizeStart.height + deltaY, parentHeight));
@@ -159,10 +159,10 @@ const DraggableWindow = ({ window, children }) => {
       } ${isDragging ? 'cursor-move' : ''} ${isResizing ? 'cursor-se-resize' : ''}`}
       onMouseDown={handleActivate}
     >
-      {/* Window Header */}
+      {/* Window Header - Smaller and more compact */}
       <div
         ref={dragHandleRef}
-        className={`flex items-center justify-between px-4 py-3 border-b cursor-move select-none ${
+        className={`flex items-center justify-between px-3 py-1.5 border-b cursor-move select-none ${
           isActive 
             ? 'bg-gradient-to-r from-blue-500 to-blue-600 text-white' 
             : 'bg-gray-50 text-gray-900'
@@ -170,41 +170,41 @@ const DraggableWindow = ({ window, children }) => {
         onMouseDown={handleMouseDown}
         onDoubleClick={handleDoubleClick}
       >
-        <div className="flex items-center space-x-3 flex-1 min-w-0">
-          <span className="text-lg">{getWindowTypeIcon(window.type)}</span>
+        <div className="flex items-center space-x-2 flex-1 min-w-0">
+          <span className="text-sm">{getWindowTypeIcon(window.type)}</span>
           <div className="min-w-0 flex-1">
-            <div className="font-medium truncate text-sm">
+            <div className="font-medium truncate text-xs">
               {window.title}
             </div>
             {window.table && (
-              <div className={`text-xs truncate ${
+              <div className={`text-xs truncate leading-tight ${
                 isActive ? 'text-blue-100' : 'text-gray-500'
               }`}>
-                {window.table.tableName} • {window.table.backend}
+                {window.table.backend} • {window.table.tableName}
               </div>
             )}
           </div>
         </div>
 
-        {/* Window Controls */}
-        <div className="window-controls flex items-center space-x-1 ml-4">
+        {/* Window Controls - Smaller buttons */}
+        <div className="window-controls flex items-center space-x-0.5 ml-2">
           <button
             onClick={handleMinimize}
-            className={`p-2 rounded-md transition-colors ${
+            className={`p-1 rounded transition-colors ${
               isActive 
                 ? 'hover:bg-blue-400 hover:bg-opacity-50' 
                 : 'hover:bg-gray-200'
             }`}
             title="Minimize"
           >
-            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M20 12H4" />
             </svg>
           </button>
           
           <button
             onClick={handleMaximize}
-            className={`p-2 rounded-md transition-colors ${
+            className={`p-1 rounded transition-colors ${
               isActive 
                 ? 'hover:bg-blue-400 hover:bg-opacity-50' 
                 : 'hover:bg-gray-200'
@@ -212,11 +212,11 @@ const DraggableWindow = ({ window, children }) => {
             title={window.isMaximized ? "Restore" : "Maximize"}
           >
             {window.isMaximized ? (
-              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
               </svg>
             ) : (
-              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 8V4m0 0h4M4 4l5 5m11-1V4m0 0h-4m4 0l-5 5M4 16v4m0 0h4m-4 0l5-5m11 5l-5-5m5 5v-4m0 4h-4" />
               </svg>
             )}
@@ -224,14 +224,14 @@ const DraggableWindow = ({ window, children }) => {
 
           <button
             onClick={() => closeWindow(window.id)}
-            className={`p-2 rounded-md transition-colors ${
+            className={`p-1 rounded transition-colors ${
               isActive 
                 ? 'hover:bg-red-500 hover:bg-opacity-50' 
                 : 'hover:bg-red-200'
             }`}
             title="Close"
           >
-            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" />
             </svg>
           </button>
@@ -239,17 +239,17 @@ const DraggableWindow = ({ window, children }) => {
       </div>
 
       {/* Window Content */}
-      <div className="flex-1 overflow-hidden" style={{ height: 'calc(100% - 60px)' }}>
+      <div className="flex-1 overflow-hidden" style={{ height: 'calc(100% - 44px)' }}>
         {children}
       </div>
 
       {/* Resize Handle */}
       {!window.isMaximized && (
         <div
-          className="absolute bottom-0 right-0 w-4 h-4 cursor-se-resize opacity-50 hover:opacity-100 transition-opacity"
+          className="absolute bottom-0 right-0 w-3 h-3 cursor-se-resize opacity-50 hover:opacity-100 transition-opacity"
           onMouseDown={handleResizeMouseDown}
         >
-          <svg className="w-4 h-4 text-gray-400" fill="currentColor" viewBox="0 0 24 24">
+          <svg className="w-3 h-3 text-gray-400" fill="currentColor" viewBox="0 0 24 24">
             <path d="M22 22H20V20H22V22ZM22 18H20V16H22V18ZM18 22H16V20H18V22ZM18 18H16V16H18V18ZM14 22H12V20H14V22Z" />
           </svg>
         </div>
