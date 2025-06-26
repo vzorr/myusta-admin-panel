@@ -1,13 +1,13 @@
-// src/config/urlMappings.js - Enhanced with real chat route implementation
+// src/config/urlMappings.js - Updated to use environment variables directly
 
 const isDevelopment = process.env.NODE_ENV === 'development';
 
-// Base URLs for different environments
+// Base URLs from environment variables or fallbacks
 const BASE_URLS = {
   development: {
-    // Use empty strings to use relative paths (proxy)
-    myusta: '',
-    chat: '',
+    // Get from environment variables or fallback to defaults
+    myusta: process.env.REACT_APP_MYUSTA_BACKEND_URL || 'http://localhost:3000',
+    chat: process.env.REACT_APP_CHAT_BACKEND_URL || 'http://localhost:5000',
   },
   production: {
     myusta: process.env.REACT_APP_MYUSTA_BACKEND_URL || 'https://myusta.al/myusta-backend',
@@ -25,14 +25,14 @@ const getCurrentUrls = () => {
   return BASE_URLS[env] || BASE_URLS.development;
 };
 
-// Complete URL mapping with enhanced chat routes
+// Complete URL mapping with environment-based URLs
 export const URL_MAPPINGS = {
   // Base URLs
   base: getCurrentUrls(),
   
   // MyUsta backend endpoints
   myusta: {
-    // Admin endpoints - /api/admin/* (proxied to localhost:3000)
+    // Admin endpoints
     admin: {
       models: () => `${getCurrentUrls().myusta}/api/admin/models`,
       model: (modelName) => `${getCurrentUrls().myusta}/api/admin/models/${modelName}`,
@@ -55,7 +55,7 @@ export const URL_MAPPINGS = {
       }
     },
     
-    // Authentication endpoints - /api/auth/* (proxied to localhost:3000)
+    // Authentication endpoints
     auth: {
       login: () => `${getCurrentUrls().myusta}/api/auth/login`,
       logout: () => `${getCurrentUrls().myusta}/api/auth/logout`,
@@ -64,7 +64,7 @@ export const URL_MAPPINGS = {
       profile: () => `${getCurrentUrls().myusta}/api/auth/profile`
     },
     
-    // User endpoints - /api/users/* (proxied to localhost:3000)
+    // User endpoints
     users: {
       list: (params = {}) => {
         const query = new URLSearchParams(params).toString();
@@ -76,7 +76,7 @@ export const URL_MAPPINGS = {
       profile: (userId) => `${getCurrentUrls().myusta}/api/users/${userId}/profile`
     },
     
-    // Service endpoints - /api/services/* (proxied to localhost:3000)
+    // Service endpoints
     services: {
       list: () => `${getCurrentUrls().myusta}/api/services`,
       create: () => `${getCurrentUrls().myusta}/api/services`,
@@ -85,7 +85,7 @@ export const URL_MAPPINGS = {
       categories: () => `${getCurrentUrls().myusta}/api/services/categories`
     },
     
-    // Booking endpoints - /api/bookings/* (proxied to localhost:3000)
+    // Booking endpoints
     bookings: {
       list: () => `${getCurrentUrls().myusta}/api/bookings`,
       create: () => `${getCurrentUrls().myusta}/api/bookings`,
@@ -95,9 +95,9 @@ export const URL_MAPPINGS = {
     }
   },
   
-  // Chat backend endpoints - ENHANCED with real implementation
+  // Chat backend endpoints
   chat: {
-    // Admin endpoints - /api/v1/admin/* (proxied to localhost:5000)
+    // Admin endpoints
     admin: {
       models: () => `${getCurrentUrls().chat}/api/v1/admin/models`,
       model: (modelName) => `${getCurrentUrls().chat}/api/v1/admin/models/${modelName}`,
@@ -124,7 +124,7 @@ export const URL_MAPPINGS = {
       }
     },
     
-    // Regular chat endpoints - /api/v1/* (proxied to localhost:5000)
+    // Regular chat endpoints
     conversations: {
       list: () => `${getCurrentUrls().chat}/api/v1/conversations`,
       create: () => `${getCurrentUrls().chat}/api/v1/conversations`,
@@ -258,18 +258,21 @@ export const createWebSocketUrl = (endpoint) => {
 // Debug helper
 export const debugUrls = () => {
   if (process.env.NODE_ENV === 'development') {
-    console.group('🔗 Enhanced API Routes Debug');
+    console.group('🔗 API Routes Debug (Environment Variables)');
     console.log('Environment:', process.env.NODE_ENV);
-    console.log('Base URLs:', getCurrentUrls());
-    console.log('Using proxy:', getCurrentUrls().myusta === '');
+    console.log('Environment Variables:');
+    console.log('  REACT_APP_MYUSTA_BACKEND_URL:', process.env.REACT_APP_MYUSTA_BACKEND_URL);
+    console.log('  REACT_APP_CHAT_BACKEND_URL:', process.env.REACT_APP_CHAT_BACKEND_URL);
     console.log('');
-    console.log('MyUsta Routes (via proxy):');
+    console.log('Resolved Base URLs:', getCurrentUrls());
+    console.log('');
+    console.log('MyUsta Routes:');
     console.log('  Admin Models:', URL_MAPPINGS.myusta.admin.models());
     console.log('  Auth Login:', URL_MAPPINGS.myusta.auth.login());
     console.log('  Users List:', URL_MAPPINGS.myusta.users.list());
     console.log('  V2 Models:', URL_MAPPINGS.myusta.admin.v2.models());
     console.log('');
-    console.log('Chat Routes (via proxy):');
+    console.log('Chat Routes:');
     console.log('  Admin Models:', URL_MAPPINGS.chat.admin.models());
     console.log('  Conversations:', URL_MAPPINGS.chat.conversations.list());
     console.log('  Messages:', URL_MAPPINGS.chat.messages.list());
@@ -279,10 +282,6 @@ export const debugUrls = () => {
     console.log('');
     console.log('WebSocket URLs:');
     console.log('  Chat Connect:', URL_MAPPINGS.chat.websocket.connect());
-    console.log('');
-    console.log('💡 In development, these will be proxied:');
-    console.log('  /api/* → http://localhost:3000/* (MyUsta)');
-    console.log('  /api/v1/* → http://localhost:5000/* (Chat)');
     console.log('');
     console.log('Health Check URLs:');
     console.log('  MyUsta:', HEALTH_CHECK_URLS.myusta);
@@ -305,6 +304,15 @@ export const validateEnvironment = () => {
     }
   }
   
+  // Validate URLs are properly formatted
+  const urls = getCurrentUrls();
+  if (!urls.myusta.startsWith('http')) {
+    errors.push('MyUsta backend URL must start with http:// or https://');
+  }
+  if (!urls.chat.startsWith('http')) {
+    errors.push('Chat backend URL must start with http:// or https://');
+  }
+  
   return { warnings, errors };
 };
 
@@ -313,9 +321,9 @@ if (process.env.NODE_ENV === 'development') {
   debugUrls();
   const { warnings, errors } = validateEnvironment();
   if (warnings.length > 0) {
-    console.warn('Environment warnings:', warnings);
+    console.warn('⚠️ Environment warnings:', warnings);
   }
   if (errors.length > 0) {
-    console.error('Environment errors:', errors);
+    console.error('❌ Environment errors:', errors);
   }
 }
