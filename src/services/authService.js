@@ -1,15 +1,10 @@
-// src/services/authService.js - Fixed for proxy
+
+// src/services/authService.js - Simplified without logging code
 import { API_ENDPOINTS, LOGIN_CREDENTIALS, APP_CONFIG } from '../utils/constants';
 
 class AuthService {
   constructor() {
-    // In development, use empty string for proxy. In production, use full URL
     this.baseUrl = process.env.NODE_ENV === 'development' ? '' : API_ENDPOINTS.MYUSTA_BACKEND;
-    
-    if (APP_CONFIG.DEBUG) {
-      console.log('AuthService baseUrl:', this.baseUrl);
-      console.log('Environment:', process.env.NODE_ENV);
-    }
   }
 
   async login(credentials = LOGIN_CREDENTIALS) {
@@ -26,29 +21,21 @@ class AuthService {
         'Content-Type': 'application/json',
         'Accept': 'application/json'
       },
-      body: loginData
+      body: loginData,
+      timeout: 10000 // 10 second timeout for login
     };
 
-    // Construct URL - in development this will be '/api/auth/login', in production full URL
     const url = this.baseUrl ? `${this.baseUrl}/api/auth/login` : '/api/auth/login';
 
-    if (APP_CONFIG.DEBUG) {
-      console.log('Login request:', {
-        url: url,
-        data: JSON.parse(loginData),
-        config,
-        baseUrl: this.baseUrl
-      });
-    }
+    // Create abort controller for timeout
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), config.timeout);
+    config.signal = controller.signal;
 
     try {
       const response = await fetch(url, config);
+      clearTimeout(timeoutId);
       
-      if (APP_CONFIG.DEBUG) {
-        console.log('Response status:', response.status);
-        console.log('Response headers:', [...response.headers.entries()]);
-      }
-
       if (!response.ok) {
         const errorText = await response.text();
         throw new Error(`HTTP ${response.status}: ${errorText}`);
@@ -56,17 +43,11 @@ class AuthService {
 
       const responseData = await response.json();
 
-      if (APP_CONFIG.DEBUG) {
-        console.log('Login response:', JSON.stringify(responseData, null, 2));
-      }
-
-      // Handle the specific response format you provided
       if (responseData.success && responseData.result) {
         const { result } = responseData;
         const token = result.token;
         
         if (token) {
-          // Store token and user data
           this.storeToken(token);
           this.storeUserData(result);
           
@@ -98,12 +79,12 @@ class AuthService {
         };
       }
     } catch (error) {
-      console.error('Login error:', error);
-      
-      // Provide specific error messages for common issues
+      clearTimeout(timeoutId);
       let errorMessage = error.message;
       
-      if (error.message.includes('Failed to fetch')) {
+      if (error.name === 'AbortError') {
+        errorMessage = 'Login timeout: Request took too long to complete';
+      } else if (error.message.includes('Failed to fetch')) {
         errorMessage = 'Network error: Unable to connect to server. Please check if the server is running and CORS is properly configured.';
       } else if (error.message.includes('CORS')) {
         errorMessage = 'CORS error: The server needs to allow requests from this domain.';
@@ -118,8 +99,6 @@ class AuthService {
     }
   }
 
-  // ... rest of your methods remain the same (logout, refreshToken, etc.)
-  
   async logout() {
     try {
       const token = this.getStoredToken();
@@ -221,13 +200,9 @@ class AuthService {
     }
   }
 
-  // Token management methods
   storeToken(token) {
     if (typeof Storage !== "undefined") {
       localStorage.setItem(APP_CONFIG.TOKEN_KEY, token);
-      if (APP_CONFIG.DEBUG) {
-        console.log('Token stored:', token.substring(0, 20) + '...');
-      }
     }
   }
 
@@ -241,18 +216,12 @@ class AuthService {
   clearToken() {
     if (typeof Storage !== "undefined") {
       localStorage.removeItem(APP_CONFIG.TOKEN_KEY);
-      if (APP_CONFIG.DEBUG) {
-        console.log('Token cleared');
-      }
     }
   }
 
   storeUserData(userData) {
     if (typeof Storage !== "undefined") {
       localStorage.setItem('userData', JSON.stringify(userData));
-      if (APP_CONFIG.DEBUG) {
-        console.log('User data stored:', userData);
-      }
     }
   }
 
@@ -267,9 +236,6 @@ class AuthService {
   clearUserData() {
     if (typeof Storage !== "undefined") {
       localStorage.removeItem('userData');
-      if (APP_CONFIG.DEBUG) {
-        console.log('User data cleared');
-      }
     }
   }
 
@@ -330,17 +296,13 @@ class AuthService {
       body: data
     };
 
-    console.log('Testing login with exact configuration...');
-    
     try {
       const url = this.baseUrl ? `${this.baseUrl}/api/auth/login` : '/api/auth/login';
       const response = await fetch(url, config);
       const responseData = await response.json();
       
-      console.log('Test login response:', JSON.stringify(responseData, null, 2));
       return responseData;
     } catch (error) {
-      console.error('Test login error:', error);
       throw error;
     }
   }

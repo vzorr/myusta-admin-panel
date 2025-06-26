@@ -1,5 +1,5 @@
-// src/screens/DashboardScreen.js
-import React, { useEffect } from 'react';
+// src/screens/DashboardScreen.js - Fixed to prevent re-render loops
+import React, { useEffect, useCallback, useRef } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { useTable } from '../context/TableContext';
 import { WindowProvider } from '../context/WindowContext';
@@ -7,6 +7,7 @@ import Layout from '../components/common/Layout';
 import DatabaseSidebar from '../components/sidebar/DatabaseSidebar';
 import WindowContainer from '../components/windows/WindowContainer';
 import WindowTaskbar from '../components/windows/WindowTaskbar';
+import DebugPanel from '../components/debug/DebugPanel';
 import { APP_CONFIG } from '../utils/constants';
 
 const DashboardScreen = () => {
@@ -19,19 +20,61 @@ const DashboardScreen = () => {
     clearError
   } = useTable();
 
+  // Track if we've already fetched tables to prevent multiple calls
+  const hasFetchedRef = useRef(false);
+  const renderCountRef = useRef(0);
+
+  // Debug: Track renders
   useEffect(() => {
-    fetchTables();
-  }, []);
+    renderCountRef.current += 1;
+    console.log(`🔄 DashboardScreen render #${renderCountRef.current}`);
+    
+    if (renderCountRef.current > 5) {
+      console.warn('⚠️ DashboardScreen re-rendering frequently - potential loop detected');
+    }
+  });
 
-  const handleRefresh = () => {
+  // Stable function references with useCallback
+  const handleRefresh = useCallback(() => {
+    console.log('🔄 Manual refresh triggered');
+    hasFetchedRef.current = false; // Reset fetch flag for manual refresh
     fetchTables();
-  };
+  }, [fetchTables]);
 
-  const handleLogout = async () => {
+  const handleLogout = useCallback(async () => {
     if (window.confirm('Are you sure you want to logout?')) {
       await logout();
     }
-  };
+  }, [logout]);
+
+  // Fetch tables only once on mount or when explicitly needed
+  useEffect(() => {
+    const totalTables = (tables.myusta?.length || 0) + (tables.chat?.length || 0);
+    const shouldFetch = !hasFetchedRef.current && !loading && totalTables === 0;
+    
+    console.log('📊 DashboardScreen useEffect check:', {
+      hasFetched: hasFetchedRef.current,
+      loading,
+      totalTables,
+      shouldFetch
+    });
+
+    if (shouldFetch) {
+      console.log('🚀 Initiating table fetch');
+      hasFetchedRef.current = true;
+      fetchTables();
+    }
+  }, []); // Empty dependency array - only run on mount
+
+  // Log state changes for debugging
+  useEffect(() => {
+    console.log('📊 Tables state changed:', {
+      myustaCount: tables.myusta?.length || 0,
+      chatCount: tables.chat?.length || 0,
+      loading,
+      hasError: !!error
+    });
+  }, [tables.myusta?.length, tables.chat?.length, loading, error]);
 
   return (
     <WindowProvider>
@@ -101,6 +144,12 @@ const DashboardScreen = () => {
                       <span className="w-2 h-2 bg-orange-500 rounded-full mr-3"></span>
                       Use window controls to arrange your workspace
                     </li>
+                    {process.env.NODE_ENV === 'development' && (
+                      <li className="flex items-center">
+                        <span className="w-2 h-2 bg-red-500 rounded-full mr-3"></span>
+                        Check console for debug logs (Render: #{renderCountRef.current})
+                      </li>
+                    )}
                   </ul>
                 </div>
               </div>
@@ -113,6 +162,9 @@ const DashboardScreen = () => {
 
         {/* Window Taskbar */}
         <WindowTaskbar />
+
+        {/* Debug Panel (only in development) */}
+        {process.env.NODE_ENV === 'development' && <DebugPanel />}
       </Layout>
     </WindowProvider>
   );

@@ -1,9 +1,11 @@
-// src/App.js
-import React from 'react';
+// src/App.js - Updated to integrate middleware
+import React, { useEffect } from 'react';
 import { AuthProvider, useAuth } from './context/AuthContext';
 import { TableProvider } from './context/TableContext';
 import LoginScreen from './screens/LoginScreen';
 import DashboardScreen from './screens/DashboardScreen';
+import middlewareManager from './middlewares';
+import logger from './utils/logger';
 // Import Tailwind CSS first, then custom styles
 import './styles/globals.css';
 
@@ -33,6 +35,28 @@ const AppContent = () => {
 };
 
 const App = () => {
+  useEffect(() => {
+    // Install all middlewares when app starts
+    logger.separator('APPLICATION STARTUP', 'INIT');
+    logger.info('Initializing MyUsta Admin Panel', {
+      environment: process.env.NODE_ENV,
+      timestamp: new Date().toISOString(),
+      version: process.env.REACT_APP_VERSION || '1.0.0'
+    });
+
+    // Install middlewares
+    middlewareManager.installAll();
+
+    // Log app initialization complete
+    logger.success('Application initialized successfully');
+
+    // Cleanup function
+    return () => {
+      logger.info('Application unmounting, cleaning up middlewares');
+      middlewareManager.uninstallAll();
+    };
+  }, []);
+
   return (
     <AuthProvider>
       <div className="App">

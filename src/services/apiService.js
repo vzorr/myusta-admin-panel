@@ -1,30 +1,38 @@
-// src/services/apiService.js - Enhanced with detailed logging
-import { HTTP_METHODS, APP_CONFIG } from '../utils/constants';
-import logger from '../utils/logger';
+// src/services/apiService.js - Added timeout functionality
+import { HTTP_METHODS, API_CONFIG } from '../utils/constants';
 
 class ApiService {
-  constructor(baseUrl, token = null) {
+  constructor(baseUrl, token = null, timeout = API_CONFIG.TIMEOUT) {
     this.baseUrl = baseUrl;
     this.token = token;
-    
-    logger.api('ApiService initialized', {
-      baseUrl,
-      hasToken: !!token,
-      tokenLength: token?.length || 0
-    }, 'INIT');
+    this.timeout = timeout;
   }
 
   setToken(token) {
-    logger.auth('Setting token in ApiService', {
-      hasToken: !!token,
-      tokenLength: token?.length || 0,
-      baseUrl: this.baseUrl
-    });
     this.token = token;
+  }
+
+  setTimeout(timeout) {
+    this.timeout = timeout;
+  }
+
+  // Create AbortController with timeout
+  createTimeoutController(timeoutMs = this.timeout) {
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => {
+      controller.abort();
+    }, timeoutMs);
+    
+    return { controller, timeoutId };
   }
 
   async request(endpoint, options = {}) {
     const url = `${this.baseUrl}${endpoint}`;
+    const requestTimeout = options.timeout || this.timeout;
+    
+    // Create timeout controller
+    const { controller, timeoutId } = this.createTimeoutController(requestTimeout);
+    
     const config = {
       mode: 'cors',
       headers: {
@@ -33,75 +41,32 @@ class ApiService {
         ...(this.token && { Authorization: `Bearer ${this.token}` }),
         ...options.headers
       },
+      signal: controller.signal, // Add abort signal
       ...options
     };
 
-    // Log the request details
-    logger.apiRequest(config.method || 'GET', url, {
-      ...config,
-      headers: {
-        ...config.headers,
-        // Mask the token in logs for security
-        ...(config.headers.Authorization && {
-          Authorization: `Bearer [${config.headers.Authorization.split(' ')[1]?.substring(0, 10)}...]`
-        })
-      }
-    });
-
     try {
-      logger.time(`API-${config.method || 'GET'}-${endpoint}`);
-      
       const response = await fetch(url, config);
       
-      logger.timeEnd(`API-${config.method || 'GET'}-${endpoint}`);
-      
-      // Log response details
-      logger.api('Response received', {
-        status: response.status,
-        statusText: response.statusText,
-        ok: response.ok,
-        url: response.url,
-        headers: Object.fromEntries(response.headers.entries())
-      });
+      // Clear timeout on successful response
+      clearTimeout(timeoutId);
       
       let data;
       const contentType = response.headers.get('content-type');
       
       if (contentType && contentType.includes('application/json')) {
         data = await response.json();
-        logger.debug('Parsed JSON data', { 
-          dataType: typeof data,
-          dataKeys: typeof data === 'object' && data !== null ? Object.keys(data) : [],
-          dataLength: Array.isArray(data) ? data.length : undefined
-        });
       } else {
         data = await response.text();
-        logger.warn('Non-JSON response received', {
-          contentType,
-          dataLength: data.length,
-          preview: data.substring(0, 100)
-        });
       }
       
       if (!response.ok) {
-        // Handle different error response formats
         const errorMessage = typeof data === 'object' 
           ? (data.message || data.error || `HTTP Error: ${response.status}`)
           : data || `HTTP Error: ${response.status}`;
         
-        logger.error('API request failed', {
-          status: response.status,
-          statusText: response.statusText,
-          errorMessage,
-          url,
-          responseData: data
-        });
-        
         throw new Error(errorMessage);
       }
-      
-      // Log successful response
-      logger.apiResponse(response.status, data, url);
       
       return {
         success: true,
@@ -110,13 +75,17 @@ class ApiService {
         headers: response.headers
       };
     } catch (error) {
-      logger.timeEnd(`API-${config.method || 'GET'}-${endpoint}`);
+      // Clear timeout on error
+      clearTimeout(timeoutId);
       
       // Provide more specific error messages
       let errorMessage = error.message;
       let errorType = 'UNKNOWN';
       
-      if (error.message.includes('Failed to fetch')) {
+      if (error.name === 'AbortError') {
+        errorMessage = `Request timeout: Request took longer than ${requestTimeout}ms`;
+        errorType = 'TIMEOUT';
+      } else if (error.message.includes('Failed to fetch')) {
         errorMessage = 'Network error: Unable to connect to server';
         errorType = 'NETWORK';
       } else if (error.message.includes('CORS')) {
@@ -125,106 +94,78 @@ class ApiService {
       } else if (error.name === 'TypeError') {
         errorMessage = 'Network error: Request failed';
         errorType = 'NETWORK';
-      } else if (error.message.includes('timeout')) {
-        errorMessage = 'Request timeout: Server took too long to respond';
-        errorType = 'TIMEOUT';
       }
-      
-      logger.error('API request error', {
-        errorType,
-        originalError: error.message,
-        processedError: errorMessage,
-        url,
-        method: config.method || 'GET',
-        hasToken: !!this.token,
-        stack: error.stack
-      });
       
       return {
         success: false,
         error: errorMessage,
         status: error.status || 0,
         originalError: error.message,
-        errorType
+        errorType,
+        timeout: error.name === 'AbortError'
       };
     }
   }
 
-  async get(endpoint, params = {}) {
+  async get(endpoint, params = {}, options = {}) {
     const queryString = new URLSearchParams(params).toString();
     const url = queryString ? `${endpoint}?${queryString}` : endpoint;
     
-    logger.debug('GET request prepared', {
-      endpoint,
-      params,
-      finalUrl: url
-    });
-    
     return this.request(url, {
-      method: HTTP_METHODS.GET
+      method: HTTP_METHODS.GET,
+      ...options
     });
   }
 
-  async post(endpoint, body = {}) {
-    logger.debug('POST request prepared', {
-      endpoint,
-      bodyKeys: typeof body === 'object' ? Object.keys(body) : [],
-      bodyType: typeof body
-    });
-    
+  async post(endpoint, body = {}, options = {}) {
     return this.request(endpoint, {
       method: HTTP_METHODS.POST,
-      body: JSON.stringify(body)
+      body: JSON.stringify(body),
+      ...options
     });
   }
 
-  async put(endpoint, body = {}) {
-    logger.debug('PUT request prepared', {
-      endpoint,
-      bodyKeys: typeof body === 'object' ? Object.keys(body) : [],
-      bodyType: typeof body
-    });
-    
+  async put(endpoint, body = {}, options = {}) {
     return this.request(endpoint, {
       method: HTTP_METHODS.PUT,
-      body: JSON.stringify(body)
+      body: JSON.stringify(body),
+      ...options
     });
   }
 
-  async patch(endpoint, body = {}) {
-    logger.debug('PATCH request prepared', {
-      endpoint,
-      bodyKeys: typeof body === 'object' ? Object.keys(body) : [],
-      bodyType: typeof body
-    });
-    
+  async patch(endpoint, body = {}, options = {}) {
     return this.request(endpoint, {
       method: HTTP_METHODS.PATCH,
-      body: JSON.stringify(body)
+      body: JSON.stringify(body),
+      ...options
     });
   }
 
-  async delete(endpoint) {
-    logger.debug('DELETE request prepared', { endpoint });
-    
+  async delete(endpoint, options = {}) {
     return this.request(endpoint, {
-      method: HTTP_METHODS.DELETE
+      method: HTTP_METHODS.DELETE,
+      ...options
     });
   }
 
-  // Method to update token for all subsequent requests
+  // Convenience methods with custom timeouts
+  async quickGet(endpoint, params = {}, timeoutMs = 5000) {
+    return this.get(endpoint, params, { timeout: timeoutMs });
+  }
+
+  async quickPost(endpoint, body = {}, timeoutMs = 5000) {
+    return this.post(endpoint, body, { timeout: timeoutMs });
+  }
+
+  async slowRequest(endpoint, options = {}, timeoutMs = 60000) {
+    return this.request(endpoint, { ...options, timeout: timeoutMs });
+  }
+
   updateToken(newToken) {
-    logger.auth('Updating token', {
-      hadToken: !!this.token,
-      hasNewToken: !!newToken,
-      newTokenLength: newToken?.length || 0
-    });
     this.setToken(newToken);
   }
 
-  // Method to clear token
   clearToken() {
-    logger.auth('Clearing token', { hadToken: !!this.token });
     this.token = null;
   }
 }

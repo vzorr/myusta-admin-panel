@@ -1,5 +1,5 @@
-// src/context/TableContext.js - Enhanced with detailed logging
-import React, { createContext, useContext, useReducer } from 'react';
+// src/context/TableContext.js - Fixed to prevent re-render loops
+import React, { createContext, useContext, useReducer, useCallback, useMemo } from 'react';
 import TableService from '../services/tableService';
 import { useAuth } from './AuthContext';
 import logger from '../utils/logger';
@@ -100,14 +100,32 @@ export const TableProvider = ({ children }) => {
   const [state, dispatch] = useReducer(tableReducer, initialState);
   const { token } = useAuth();
 
-  logger.table('TableProvider initialized', {
+  logger.table('TableProvider render', {
     hasToken: !!token,
     tokenLength: token?.length || 0
   }, 'PROVIDER');
 
-  const tableService = new TableService(token);
+  // Stable tableService reference
+  const tableService = useMemo(() => {
+    if (token) {
+      return new TableService(token);
+    }
+    return null;
+  }, [token]);
 
-  const fetchTables = async () => {
+  // Stable fetchTables function with useCallback
+  const fetchTables = useCallback(async () => {
+    if (!tableService) {
+      logger.warn('No tableService available, skipping fetchTables');
+      return;
+    }
+
+    // Prevent multiple concurrent fetches
+    if (state.loading) {
+      logger.debug('Fetch already in progress, skipping');
+      return;
+    }
+
     logger.separator('FETCH TABLES INITIATED');
     logger.table('Starting fetchTables', {
       hasToken: !!token,
@@ -139,18 +157,24 @@ export const TableProvider = ({ children }) => {
       });
       dispatch({ type: 'SET_ERROR', payload: error.message });
     }
-  };
+  }, [tableService, token, state.loading]); // Include state.loading to prevent concurrent calls
 
-  const selectTable = (table) => {
+  // Other stable functions
+  const selectTable = useCallback((table) => {
     logger.table('Selecting table', {
       tableName: table?.name,
       backend: table?.backend,
       hasAttributes: !!table?.attributes?.length
     });
     dispatch({ type: 'SET_SELECTED_TABLE', payload: table });
-  };
+  }, []);
 
-  const fetchTableData = async (table, options = {}) => {
+  const fetchTableData = useCallback(async (table, options = {}) => {
+    if (!tableService) {
+      logger.warn('No tableService available for fetchTableData');
+      return { success: false, error: 'No service available' };
+    }
+
     logger.table('Fetching table data', {
       tableName: table?.name,
       backend: table?.backend,
@@ -183,233 +207,45 @@ export const TableProvider = ({ children }) => {
       dispatch({ type: 'SET_ERROR', payload: error.message });
       return { success: false, error: error.message };
     }
-  };
+  }, [tableService]);
 
-  const searchGlobal = async (searchTerm) => {
-    if (!searchTerm.trim()) {
-      logger.debug('Clearing search - empty search term');
-      dispatch({ type: 'CLEAR_SEARCH' });
-      return;
-    }
-
-    logger.table('Starting global search', { searchTerm });
-
-    dispatch({ type: 'SET_LOADING', payload: true });
-    dispatch({ type: 'CLEAR_ERROR' });
-    
-    try {
-      // Get all available tables
-      const allTables = [
-        ...state.tables.myusta,
-        ...state.tables.chat
-      ];
-      
-      logger.debug('Search across tables', {
-        searchTerm,
-        tablesCount: allTables.length,
-        tableNames: allTables.map(t => t.name)
-      });
-      
-      const results = await tableService.searchGlobal(searchTerm, allTables);
-      
-      logger.success('Global search completed', {
-        resultsCount: results?.length || 0
-      });
-      
-      dispatch({ type: 'SET_SEARCH_RESULTS', payload: results });
-    } catch (error) {
-      logger.error('Global search failed', error.message);
-      dispatch({ type: 'SET_ERROR', payload: error.message });
-    }
-  };
-
-  const getTableSchema = async (table) => {
-    logger.table('Getting table schema', {
-      tableName: table?.name,
-      backend: table?.backend
-    });
-
-    try {
-      const result = await tableService.getTableSchema(table);
-      
-      if (result.success) {
-        logger.success('Table schema retrieved', {
-          attributesCount: result.attributes?.length || 0,
-          associationsCount: result.associations?.length || 0
-        });
-      } else {
-        logger.error('Failed to get table schema', result.error);
-      }
-      
-      return result;
-    } catch (error) {
-      logger.error('Table schema error', error.message);
-      dispatch({ type: 'SET_ERROR', payload: error.message });
-      return { success: false, error: error.message };
-    }
-  };
-
-  const getRecord = async (table, recordId) => {
-    logger.table('Getting record', {
-      tableName: table?.name,
-      recordId,
-      backend: table?.backend
-    });
-
-    try {
-      const result = await tableService.getRecord(table, recordId);
-      
-      if (result.success) {
-        logger.success('Record retrieved', { recordId });
-      } else {
-        logger.error('Failed to get record', result.error);
-      }
-      
-      return result;
-    } catch (error) {
-      logger.error('Get record error', error.message);
-      dispatch({ type: 'SET_ERROR', payload: error.message });
-      return { success: false, error: error.message };
-    }
-  };
-
-  const updateRecord = async (table, recordId, data) => {
-    logger.table('Updating record', {
-      tableName: table?.name,
-      recordId,
-      updateFields: Object.keys(data || {})
-    });
-
-    try {
-      const result = await tableService.updateRecord(table, recordId, data);
-      
-      if (result.success) {
-        logger.success('Record updated', { recordId });
-      } else {
-        logger.error('Failed to update record', result.error);
-      }
-      
-      return result;
-    } catch (error) {
-      logger.error('Update record error', error.message);
-      dispatch({ type: 'SET_ERROR', payload: error.message });
-      return { success: false, error: error.message };
-    }
-  };
-
-  const deleteRecord = async (table, recordId) => {
-    logger.table('Deleting record', {
-      tableName: table?.name,
-      recordId
-    });
-
-    try {
-      const result = await tableService.deleteRecord(table, recordId);
-      
-      if (result.success) {
-        logger.success('Record deleted', { recordId });
-      } else {
-        logger.error('Failed to delete record', result.error);
-      }
-      
-      return result;
-    } catch (error) {
-      logger.error('Delete record error', error.message);
-      dispatch({ type: 'SET_ERROR', payload: error.message });
-      return { success: false, error: error.message };
-    }
-  };
-
-  const createRecord = async (table, data) => {
-    logger.table('Creating record', {
-      tableName: table?.name,
-      fields: Object.keys(data || {})
-    });
-
-    try {
-      const result = await tableService.createRecord(table, data);
-      
-      if (result.success) {
-        logger.success('Record created');
-      } else {
-        logger.error('Failed to create record', result.error);
-      }
-      
-      return result;
-    } catch (error) {
-      logger.error('Create record error', error.message);
-      dispatch({ type: 'SET_ERROR', payload: error.message });
-      return { success: false, error: error.message };
-    }
-  };
-
-  const clearError = () => {
+  const clearError = useCallback(() => {
     logger.info('Clearing error from TableContext');
     dispatch({ type: 'CLEAR_ERROR' });
-  };
+  }, []);
 
-  const clearSearch = () => {
+  const clearSearch = useCallback(() => {
     logger.info('Clearing search results');
     dispatch({ type: 'CLEAR_SEARCH' });
-  };
+  }, []);
 
-  // Helper methods
-  const getAllTables = () => {
-    const allTables = [
-      ...state.tables.myusta,
-      ...state.tables.chat
-    ];
-    
-    logger.debug('Getting all tables', {
-      totalCount: allTables.length,
-      myustaCount: state.tables.myusta.length,
-      chatCount: state.tables.chat.length
-    });
-    
-    return allTables;
-  };
-
-  const getTableByName = (name, backend) => {
-    const tables = backend === 'myusta' ? state.tables.myusta : state.tables.chat;
-    const table = tables.find(table => table.name === name);
-    
-    logger.debug('Getting table by name', {
-      name,
-      backend,
-      found: !!table
-    });
-    
-    return table;
-  };
-
-  const getTablesCount = () => {
-    const counts = {
-      myusta: state.tables.myusta.length,
-      chat: state.tables.chat.length,
-      total: state.tables.myusta.length + state.tables.chat.length
-    };
-    
-    logger.debug('Tables count', counts);
-    return counts;
-  };
-
-  const value = {
+  // Memoize the context value to prevent unnecessary re-renders
+  const value = useMemo(() => ({
     ...state,
     fetchTables,
     selectTable,
     fetchTableData,
-    searchGlobal,
-    getTableSchema,
-    getRecord,
-    updateRecord,
-    deleteRecord,
-    createRecord,
     clearError,
     clearSearch,
-    getAllTables,
-    getTableByName,
-    getTablesCount
-  };
+    // Helper methods
+    getAllTables: () => [...state.tables.myusta, ...state.tables.chat],
+    getTableByName: (name, backend) => {
+      const tables = backend === 'myusta' ? state.tables.myusta : state.tables.chat;
+      return tables.find(table => table.name === name);
+    },
+    getTablesCount: () => ({
+      myusta: state.tables.myusta.length,
+      chat: state.tables.chat.length,
+      total: state.tables.myusta.length + state.tables.chat.length
+    })
+  }), [
+    state, 
+    fetchTables, 
+    selectTable, 
+    fetchTableData, 
+    clearError, 
+    clearSearch
+  ]);
 
   return (
     <TableContext.Provider value={value}>
