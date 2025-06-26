@@ -1,4 +1,4 @@
-// src/components/sidebar/DatabaseSidebar.js
+// src/components/sidebar/DatabaseSidebar.js - Enhanced with mobile support
 import React, { useState, useEffect } from 'react';
 import { 
   Database, 
@@ -10,21 +10,28 @@ import {
   Search,
   Layers,
   Eye,
-  Settings
+  Settings,
+  Wifi,
+  WifiOff,
+  AlertCircle
 } from 'lucide-react';
 import { useTable } from '../../context/TableContext';
 import { useWindows, WINDOW_TYPES } from '../../context/WindowContext';
 import { BACKEND_TYPES } from '../../utils/constants';
 
-const DatabaseSidebar = () => {
+const DatabaseSidebar = ({ onTableSelect }) => {
   const { tables, loading, fetchTables, error } = useTable();
   const { openWindow } = useWindows();
   const [expandedSections, setExpandedSections] = useState({
     myusta: true,
-    chat: false
+    chat: true // Default to expanded for better UX
   });
   const [searchTerm, setSearchTerm] = useState('');
   const [filteredTables, setFilteredTables] = useState({ myusta: [], chat: [] });
+  const [backendStatus, setBackendStatus] = useState({
+    myusta: 'unknown',
+    chat: 'unknown'
+  });
 
   useEffect(() => {
     fetchTables();
@@ -45,7 +52,13 @@ const DatabaseSidebar = () => {
       myusta: filterTables(tables.myusta || []),
       chat: filterTables(tables.chat || [])
     });
-  }, [tables, searchTerm]);
+
+    // Update backend status based on data availability
+    setBackendStatus({
+      myusta: (tables.myusta?.length > 0) ? 'connected' : (error ? 'error' : 'loading'),
+      chat: (tables.chat?.length > 0) ? 'connected' : 'disconnected'
+    });
+  }, [tables, searchTerm, error]);
 
   const toggleSection = (section) => {
     setExpandedSections(prev => ({
@@ -55,6 +68,11 @@ const DatabaseSidebar = () => {
   };
 
   const handleTableClick = (table) => {
+    // Call parent callback for mobile sidebar close
+    if (onTableSelect) {
+      onTableSelect();
+    }
+
     openWindow({
       type: WINDOW_TYPES.TABLE_DATA,
       title: `${table.displayName} - Data`,
@@ -86,27 +104,33 @@ const DatabaseSidebar = () => {
       {
         label: 'View Structure',
         icon: Layers,
-        action: () => openWindow({
-          type: WINDOW_TYPES.TABLE_SCHEMA,
-          title: `${table.displayName} - Structure`,
-          table: table
-        })
+        action: () => {
+          if (onTableSelect) onTableSelect();
+          openWindow({
+            type: WINDOW_TYPES.TABLE_SCHEMA,
+            title: `${table.displayName} - Structure`,
+            table: table
+          });
+        }
       },
       {
         label: 'Table Info',
         icon: Info,
-        action: () => openWindow({
-          type: WINDOW_TYPES.TABLE_SCHEMA,
-          title: `${table.displayName} - Information`,
-          table: table,
-          data: { activeTab: 'info' }
-        })
+        action: () => {
+          if (onTableSelect) onTableSelect();
+          openWindow({
+            type: WINDOW_TYPES.TABLE_SCHEMA,
+            title: `${table.displayName} - Information`,
+            table: table,
+            data: { activeTab: 'info' }
+          });
+        }
       }
     ];
 
     menuOptions.forEach(option => {
       const menuItem = document.createElement('div');
-      menuItem.className = 'px-4 py-2 hover:bg-gray-100 cursor-pointer flex items-center space-x-2';
+      menuItem.className = 'px-4 py-2 hover:bg-gray-100 cursor-pointer flex items-center space-x-2 text-sm';
       menuItem.innerHTML = `
         <span class="w-4 h-4">${option.icon.name}</span>
         <span>${option.label}</span>
@@ -140,29 +164,45 @@ const DatabaseSidebar = () => {
     return backend === BACKEND_TYPES.MYUSTA ? 'text-blue-600' : 'text-green-600';
   };
 
+  const getBackendStatusIcon = (status) => {
+    switch (status) {
+      case 'connected':
+        return <Wifi className="w-3 h-3 text-green-500" />;
+      case 'disconnected':
+        return <WifiOff className="w-3 h-3 text-orange-500" />;
+      case 'error':
+        return <AlertCircle className="w-3 h-3 text-red-500" />;
+      default:
+        return <div className="w-3 h-3 rounded-full bg-gray-300 animate-pulse" />;
+    }
+  };
+
   const TableItem = ({ table }) => (
     <div
       onClick={() => handleTableClick(table)}
       onContextMenu={(e) => handleTableRightClick(e, table)}
       className="group flex items-center space-x-2 px-3 py-2 text-sm rounded-md hover:bg-gray-100 cursor-pointer transition-colors"
-      title={`Table: ${table.tableName}\nAttributes: ${table.attributes?.length || 0}\nAssociations: ${table.associations?.length || 0}`}
+      title={`Table: ${table.tableName}\nAttributes: ${table.attributes?.length || 0}\nAssociations: ${table.associations?.length || 0}${table.isMock ? '\n[Mock Data]' : ''}`}
     >
-      <Table className="w-4 h-4 text-gray-500 group-hover:text-gray-700" />
+      <Table className="w-4 h-4 text-gray-500 group-hover:text-gray-700 flex-shrink-0" />
       <div className="flex-1 min-w-0">
         <div className="font-medium text-gray-900 truncate">
           {table.displayName}
         </div>
-        <div className="text-xs text-gray-500 truncate">
-          {table.tableName} • {table.attributes?.length || 0} fields
+        <div className="text-xs text-gray-500 truncate flex items-center space-x-2">
+          <span>{table.tableName}</span>
+          <span>•</span>
+          <span>{table.attributes?.length || 0} fields</span>
+          {table.isMock && <span className="text-orange-500">• Mock</span>}
         </div>
       </div>
-      <div className="opacity-0 group-hover:opacity-100 transition-opacity">
+      <div className="opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0">
         <Settings className="w-3 h-3 text-gray-400" />
       </div>
     </div>
   );
 
-  const DatabaseSection = ({ title, icon, tables, backend, expanded, onToggle }) => (
+  const DatabaseSection = ({ title, icon, tables, backend, expanded, onToggle, status }) => (
     <div className="mb-4">
       <button
         onClick={onToggle}
@@ -173,9 +213,12 @@ const DatabaseSidebar = () => {
             {icon}
           </div>
           <span>{title}</span>
-          <span className="text-xs text-gray-500 bg-gray-100 px-2 py-0.5 rounded-full">
-            {tables.length}
-          </span>
+          <div className="flex items-center space-x-1">
+            {getBackendStatusIcon(status)}
+            <span className="text-xs text-gray-500 bg-gray-100 px-2 py-0.5 rounded-full">
+              {tables.length}
+            </span>
+          </div>
         </div>
         {expanded ? (
           <ChevronDown className="w-4 h-4 text-gray-500" />
@@ -192,7 +235,10 @@ const DatabaseSidebar = () => {
             ))
           ) : (
             <div className="px-3 py-2 text-sm text-gray-500 italic">
-              No tables available
+              {status === 'loading' ? 'Loading...' : 
+               status === 'error' ? 'Connection failed' :
+               status === 'disconnected' ? 'Backend not available' :
+               'No tables available'}
             </div>
           )}
         </div>
@@ -239,11 +285,12 @@ const DatabaseSidebar = () => {
       {/* Error Display */}
       {error && (
         <div className="mx-4 mt-4 p-3 bg-red-50 border border-red-200 rounded-lg">
-          <div className="flex items-center space-x-2">
-            <div className="w-4 h-4 bg-red-100 rounded-full flex items-center justify-center">
-              <span className="text-red-600 text-xs font-bold">!</span>
+          <div className="flex items-start space-x-2">
+            <AlertCircle className="w-4 h-4 text-red-600 mt-0.5 flex-shrink-0" />
+            <div className="text-sm text-red-700">
+              <div className="font-medium">Connection Error</div>
+              <div className="text-xs mt-1">{error}</div>
             </div>
-            <span className="text-sm text-red-700">{error}</span>
           </div>
         </div>
       )}
@@ -258,6 +305,7 @@ const DatabaseSidebar = () => {
           backend={BACKEND_TYPES.MYUSTA}
           expanded={expandedSections.myusta}
           onToggle={() => toggleSection('myusta')}
+          status={backendStatus.myusta}
         />
 
         {/* Chat Database */}
@@ -268,13 +316,20 @@ const DatabaseSidebar = () => {
           backend={BACKEND_TYPES.CHAT}
           expanded={expandedSections.chat}
           onToggle={() => toggleSection('chat')}
+          status={backendStatus.chat}
         />
       </div>
 
       {/* Footer */}
       <div className="p-4 border-t border-gray-200 bg-gray-50">
         <div className="text-xs text-gray-500 space-y-1">
-          <div>Total: {(filteredTables.myusta.length + filteredTables.chat.length)} tables</div>
+          <div className="flex items-center justify-between">
+            <span>Total: {(filteredTables.myusta.length + filteredTables.chat.length)} tables</span>
+            <div className="flex items-center space-x-1">
+              {getBackendStatusIcon(backendStatus.myusta)}
+              {getBackendStatusIcon(backendStatus.chat)}
+            </div>
+          </div>
           <div className="flex items-center justify-between">
             <span>MyUsta: {filteredTables.myusta.length}</span>
             <span>Chat: {filteredTables.chat.length}</span>
@@ -284,6 +339,15 @@ const DatabaseSidebar = () => {
               Filtered by: "{searchTerm}"
             </div>
           )}
+          <div className="pt-2 border-t border-gray-200 text-center">
+            <button
+              onClick={fetchTables}
+              disabled={loading}
+              className="text-blue-600 hover:text-blue-800 disabled:opacity-50 text-xs"
+            >
+              {loading ? 'Refreshing...' : 'Refresh Tables'}
+            </button>
+          </div>
         </div>
       </div>
     </div>

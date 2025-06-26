@@ -1,4 +1,4 @@
-// src/services/tableService.js - Fixed to handle MyUsta response structure
+// src/services/tableService.js - Updated with real chat implementation
 import { URL_MAPPINGS, urlHelpers } from '../config/urlMappings';
 import ApiService from './apiService';
 import logger from '../utils/logger';
@@ -30,10 +30,10 @@ class TableService {
     console.log('🚀 Fetching all tables...');
     
     try {
-      // Always get MyUsta tables (primary backend)
       let myustaTables = [];
       let chatTables = [];
 
+      // Get MyUsta tables (primary backend)
       try {
         myustaTables = await this.getMyustaTables();
         console.log(`✅ MyUsta tables: ${myustaTables.length}`);
@@ -42,13 +42,14 @@ class TableService {
         throw error; // MyUsta errors are critical
       }
 
-      // Try chat backend but don't fail if it's not available
+      // Get chat backend tables - now using real implementation
       try {
         chatTables = await this.getChatTables();
         console.log(`✅ Chat tables: ${chatTables.length}`);
       } catch (error) {
-        console.warn('⚠️ Chat backend not available, using mock data:', error.message);
-        chatTables = this.getMockChatTables();
+        console.warn('⚠️ Chat backend error:', error.message);
+        // For chat backend, we still provide a minimal fallback but try real implementation first
+        chatTables = [];
       }
 
       const result = {
@@ -67,7 +68,7 @@ class TableService {
     }
   }
 
-  // Get MyUsta tables - FIXED to handle response.data.result structure
+  // Get MyUsta tables - Enhanced error handling
   async getMyustaTables() {
     try {
       console.log('🔄 Calling MyUsta API: /api/admin/models');
@@ -81,7 +82,7 @@ class TableService {
         totalModels: response.data?.totalModels || response.data?.result?.totalModels
       });
       
-      // FIXED: Handle both response.data.result and response.data.models
+      // Handle both response.data.result and response.data.models
       let models = null;
       let totalModels = 0;
       
@@ -143,123 +144,101 @@ class TableService {
     }
   }
 
-  // Get Chat tables - optional backend
+  // Get Chat tables - REAL IMPLEMENTATION (no more mock)
   async getChatTables() {
     try {
-      // First check if chat backend is available
-      const healthCheck = await this.chatApi.get('/api/v1/admin/health');
+      console.log('🔄 Calling Chat API: /api/v1/admin/models');
       
-      if (!healthCheck.success) {
-        throw new Error('Chat backend health check failed');
+      // First check if chat backend is available with health check
+      try {
+        const healthCheck = await this.chatApi.get('/api/v1/admin/health');
+        if (!healthCheck.success) {
+          throw new Error('Chat backend health check failed');
+        }
+        console.log('✅ Chat backend health check passed');
+      } catch (healthError) {
+        console.warn('⚠️ Chat backend health check failed:', healthError.message);
+        throw new Error(`Chat backend not available: ${healthError.message}`);
       }
 
+      // Get models from chat backend
       const response = await this.chatApi.get('/api/v1/admin/models');
       
-      // Handle chat response structure (similar to MyUsta fix)
+      console.log('📥 Chat API Response:', {
+        success: response.success,
+        hasData: !!response.data,
+        hasResult: !!response.data?.result,
+        dataKeys: response.data ? Object.keys(response.data) : []
+      });
+      
+      // Handle chat response structure (similar to MyUsta)
       let models = null;
+      let totalModels = 0;
       
       if (response.success && response.data) {
+        // Try response.data.result first
         if (response.data.result && response.data.result.models) {
           models = response.data.result.models;
-        } else if (response.data.models) {
+          totalModels = response.data.result.totalModels;
+          console.log('✅ Using chat response.data.result structure');
+        }
+        // Fallback to response.data.models
+        else if (response.data.models) {
           models = response.data.models;
+          totalModels = response.data.totalModels;
+          console.log('✅ Using chat response.data structure');
         }
       }
       
-      if (models && Array.isArray(models)) {
-        return models.map(model => ({
+      if (!models || !Array.isArray(models)) {
+        console.warn('⚠️ Invalid chat response structure:', response.data);
+        throw new Error('Invalid response format from Chat backend - no models array found');
+      }
+
+      console.log(`📊 Processing ${models.length} Chat models`);
+      
+      const mappedTables = models.map((model, index) => {
+        console.log(`Processing chat model ${index + 1}:`, {
+          name: model.name,
+          tableName: model.tableName,
+          attributesCount: model.attributes?.length || 0,
+          associationsCount: model.associations?.length || 0
+        });
+        
+        return {
           name: model.name,
           tableName: model.tableName,
           displayName: this.formatTableName(model.name),
           backend: 'chat',
           attributes: model.attributes || [],
           associations: model.associations || [],
-          primaryKey: model.primaryKey || 'id'
-        }));
-      }
+          primaryKey: model.primaryKey || 'id',
+          totalModels: totalModels
+        };
+      });
+
+      console.log('✅ Chat tables processed successfully:', {
+        count: mappedTables.length,
+        tables: mappedTables.map(t => t.name)
+      });
+
+      return mappedTables;
       
-      throw new Error('Invalid response from chat backend');
     } catch (error) {
-      // Chat backend errors are not critical
-      throw new Error(`Chat backend unavailable: ${error.message}`);
+      console.error('❌ Chat API error:', {
+        message: error.message,
+        stack: error.stack
+      });
+      // Don't fail the entire app if chat backend is unavailable
+      throw error;
     }
   }
 
-  // Return mock chat tables when backend is unavailable
-  getMockChatTables() {
-    return [
-      {
-        name: 'ChatUser',
-        tableName: 'chat_users',
-        displayName: 'Chat Users',
-        backend: 'chat',
-        attributes: [
-          { name: 'id', type: 'INTEGER', primaryKey: true },
-          { name: 'username', type: 'STRING' },
-          { name: 'email', type: 'STRING' },
-          { name: 'status', type: 'STRING' },
-          { name: 'createdAt', type: 'DATE' }
-        ],
-        associations: [],
-        primaryKey: 'id',
-        isMock: true
-      },
-      {
-        name: 'Message',
-        tableName: 'messages',
-        displayName: 'Messages',
-        backend: 'chat',
-        attributes: [
-          { name: 'id', type: 'INTEGER', primaryKey: true },
-          { name: 'userId', type: 'INTEGER' },
-          { name: 'content', type: 'TEXT' },
-          { name: 'timestamp', type: 'DATE' },
-          { name: 'type', type: 'STRING' }
-        ],
-        associations: [],
-        primaryKey: 'id',
-        isMock: true
-      },
-      {
-        name: 'Conversation',
-        tableName: 'conversations',
-        displayName: 'Conversations',
-        backend: 'chat',
-        attributes: [
-          { name: 'id', type: 'INTEGER', primaryKey: true },
-          { name: 'title', type: 'STRING' },
-          { name: 'type', type: 'STRING' },
-          { name: 'createdAt', type: 'DATE' }
-        ],
-        associations: [],
-        primaryKey: 'id',
-        isMock: true
-      }
-    ];
-  }
-
-  // Get table data - FIXED to handle response.data.result structure
+  // Get table data - Enhanced for real chat implementation
   async getTableData(table, options = {}) {
     const { page = 1, size = 20, search = '', sortBy = 'createdAt', sortOrder = 'DESC' } = options;
 
     console.log(`📊 Fetching data for ${table.name} (${table.backend})`);
-
-    // Handle mock tables
-    if (table.isMock) {
-      return {
-        success: true,
-        records: [],
-        pagination: {
-          currentPage: 1,
-          pageSize: size,
-          totalItems: 0,
-          totalPages: 0,
-          hasNextPage: false,
-          hasPrevPage: false
-        },
-        model: table
-      };
-    }
 
     const api = table.backend === 'myusta' ? this.myustaApi : this.chatApi;
     const baseEndpoint = table.backend === 'myusta' 
@@ -286,7 +265,7 @@ class TableService {
       });
       
       if (response.success && response.data) {
-        // FIXED: Handle both response structures
+        // Handle both response structures
         let records = [];
         let pagination = {};
         let model = table;
@@ -318,20 +297,9 @@ class TableService {
     } catch (error) {
       console.error(`❌ Error fetching ${table.name} data:`, error.message);
       
-      // For chat backend errors, return empty data instead of failing
-      if (table.backend === 'chat') {
-        return {
-          records: [],
-          pagination: { currentPage: 1, pageSize: size, totalItems: 0 },
-          model: table,
-          success: true,
-          warning: 'Chat backend not available'
-        };
-      }
-      
       return {
         records: [],
-        pagination: {},
+        pagination: { currentPage: 1, pageSize: size, totalItems: 0 },
         model: table,
         success: false,
         error: error.message
@@ -339,24 +307,9 @@ class TableService {
     }
   }
 
-  // Get table schema - FIXED to handle response.data.result structure
+  // Get table schema - Enhanced for real chat implementation
   async getTableSchema(table) {
     console.log(`🏗️ Fetching schema for ${table.name} (${table.backend})`);
-
-    // Handle mock tables
-    if (table.isMock) {
-      return {
-        success: true,
-        attributes: table.attributes || [],
-        associations: table.associations || [],
-        model: {
-          name: table.name,
-          tableName: table.tableName,
-          primaryKey: table.primaryKey || 'id'
-        },
-        warning: 'Using mock data - chat backend not available'
-      };
-    }
 
     const api = table.backend === 'myusta' ? this.myustaApi : this.chatApi;
     const endpoint = table.backend === 'myusta' 
@@ -367,7 +320,7 @@ class TableService {
       const response = await api.get(endpoint);
       
       if (response.success && response.data) {
-        // FIXED: Handle both response structures
+        // Handle both response structures
         let attributes = [];
         let associations = [];
         let model = {};
@@ -407,9 +360,8 @@ class TableService {
       
       // Return fallback schema using table attributes
       return {
-        success: table.backend === 'chat', // Don't fail for chat backend
-        error: table.backend === 'myusta' ? error.message : undefined,
-        warning: table.backend === 'chat' ? 'Chat backend not available' : undefined,
+        success: false,
+        error: error.message,
         attributes: table.attributes || [],
         associations: table.associations || [],
         model: {
@@ -421,21 +373,9 @@ class TableService {
     }
   }
 
-  // Get single record - FIXED to handle response.data.result structure
+  // Get single record - Works for both backends
   async getRecord(table, recordId) {
     console.log(`📝 Fetching record ${recordId} from ${table.name}`);
-
-    if (table.isMock) {
-      return {
-        success: true,
-        record: {
-          id: recordId,
-          name: `Mock ${table.name} Record`,
-          createdAt: new Date().toISOString()
-        },
-        warning: 'Mock data - chat backend not available'
-      };
-    }
 
     const api = table.backend === 'myusta' ? this.myustaApi : this.chatApi;
     const endpoint = table.backend === 'myusta' 
@@ -446,7 +386,7 @@ class TableService {
       const response = await api.get(endpoint);
       
       if (response.success && response.data) {
-        // FIXED: Handle both response structures
+        // Handle both response structures
         let record = {};
         
         if (response.data.result) {
@@ -465,14 +405,6 @@ class TableService {
     } catch (error) {
       console.error(`❌ Error fetching record ${recordId}:`, error.message);
       
-      if (table.backend === 'chat') {
-        return {
-          success: true,
-          record: { id: recordId, name: 'Mock Record' },
-          warning: 'Chat backend not available'
-        };
-      }
-      
       return {
         success: false,
         error: error.message
@@ -480,18 +412,12 @@ class TableService {
     }
   }
 
-  // Update, Delete, Create methods remain the same but with response.data.result handling
+  // Update record - Works for both backends
   async updateRecord(table, recordId, data) {
-    if (table.isMock || table.backend === 'chat') {
-      return {
-        success: true,
-        record: { ...data, id: recordId },
-        warning: 'Mock update - chat backend not available'
-      };
-    }
-
-    const api = this.myustaApi;
-    const endpoint = `/api/admin/models/${table.name}/records/${recordId}`;
+    const api = table.backend === 'myusta' ? this.myustaApi : this.chatApi;
+    const endpoint = table.backend === 'myusta' 
+      ? `/api/admin/models/${table.name}/records/${recordId}`
+      : `/api/v1/admin/models/${table.name}/records/${recordId}`;
 
     try {
       const response = await api.put(endpoint, data);
@@ -519,16 +445,12 @@ class TableService {
     }
   }
 
+  // Delete record - Works for both backends
   async deleteRecord(table, recordId) {
-    if (table.isMock || table.backend === 'chat') {
-      return {
-        success: true,
-        message: 'Mock deletion - chat backend not available'
-      };
-    }
-
-    const api = this.myustaApi;
-    const endpoint = `/api/admin/models/${table.name}/records/${recordId}`;
+    const api = table.backend === 'myusta' ? this.myustaApi : this.chatApi;
+    const endpoint = table.backend === 'myusta' 
+      ? `/api/admin/models/${table.name}/records/${recordId}`
+      : `/api/v1/admin/models/${table.name}/records/${recordId}`;
 
     try {
       const response = await api.delete(endpoint);
@@ -556,17 +478,12 @@ class TableService {
     }
   }
 
+  // Create record - Works for both backends
   async createRecord(table, data) {
-    if (table.isMock || table.backend === 'chat') {
-      return {
-        success: true,
-        record: { ...data, id: Date.now() },
-        warning: 'Mock creation - chat backend not available'
-      };
-    }
-
-    const api = this.myustaApi;
-    const endpoint = `/api/admin/models/${table.name}/records`;
+    const api = table.backend === 'myusta' ? this.myustaApi : this.chatApi;
+    const endpoint = table.backend === 'myusta' 
+      ? `/api/admin/models/${table.name}/records`
+      : `/api/v1/admin/models/${table.name}/records`;
 
     try {
       const response = await api.post(endpoint, data);

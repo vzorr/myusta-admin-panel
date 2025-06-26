@@ -1,5 +1,5 @@
-// src/screens/DashboardScreen.js - Updated with KPI cards
-import React, { useEffect, useCallback, useRef } from 'react';
+// src/screens/DashboardScreen.js - Updated with responsive mobile menu
+import React, { useEffect, useCallback, useRef, useState } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { useTable } from '../context/TableContext';
 import { WindowProvider } from '../context/WindowContext';
@@ -10,6 +10,7 @@ import WindowTaskbar from '../components/windows/WindowTaskbar';
 import KpiCards from '../components/dashboard/KpiCards';
 import DebugPanel from '../components/debug/DebugPanel';
 import { APP_CONFIG } from '../utils/constants';
+import { Menu, X } from 'lucide-react';
 
 const DashboardScreen = () => {
   const { user, logout } = useAuth();
@@ -20,6 +21,9 @@ const DashboardScreen = () => {
     fetchTables, 
     clearError
   } = useTable();
+
+  // Mobile sidebar state
+  const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false);
 
   // Track fetch status to prevent duplicate calls
   const hasFetchedRef = useRef(false);
@@ -52,6 +56,23 @@ const DashboardScreen = () => {
       await logout();
     }
   }, [logout]);
+
+  // Close mobile sidebar when clicking outside
+  const handleOverlayClick = useCallback(() => {
+    setIsMobileSidebarOpen(false);
+  }, []);
+
+  // Close mobile sidebar on window resize to desktop
+  useEffect(() => {
+    const handleResize = () => {
+      if (window.innerWidth >= 1024) { // lg breakpoint
+        setIsMobileSidebarOpen(false);
+      }
+    };
+
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
 
   // Only fetch tables once on mount
   useEffect(() => {
@@ -117,15 +138,50 @@ const DashboardScreen = () => {
         onRefresh={handleRefresh}
         loading={loading}
       >
-        <div className="flex h-full">
-          {/* Left Sidebar - Database Explorer */}
-          <DatabaseSidebar />
+        <div className="flex h-full relative">
+          {/* Mobile Menu Button */}
+          <button
+            onClick={() => setIsMobileSidebarOpen(true)}
+            className="lg:hidden fixed top-4 left-4 z-50 p-2 bg-white rounded-lg shadow-lg border border-gray-200 hover:bg-gray-50 transition-colors"
+            aria-label="Open sidebar menu"
+          >
+            <Menu className="w-6 h-6 text-gray-700" />
+          </button>
+
+          {/* Mobile Overlay */}
+          {isMobileSidebarOpen && (
+            <div 
+              className="lg:hidden fixed inset-0 bg-black bg-opacity-50 z-40 transition-opacity"
+              onClick={handleOverlayClick}
+            />
+          )}
+
+          {/* Left Sidebar - Desktop always visible, Mobile slide-in */}
+          <div className={`
+            fixed lg:relative
+            top-0 left-0 h-full
+            transform transition-transform duration-300 ease-in-out
+            lg:transform-none
+            z-50 lg:z-auto
+            ${isMobileSidebarOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'}
+          `}>
+            {/* Mobile Close Button */}
+            <button
+              onClick={() => setIsMobileSidebarOpen(false)}
+              className="lg:hidden absolute top-4 right-4 z-10 p-2 bg-white rounded-lg shadow-lg border border-gray-200 hover:bg-gray-50 transition-colors"
+              aria-label="Close sidebar menu"
+            >
+              <X className="w-5 h-5 text-gray-700" />
+            </button>
+
+            <DatabaseSidebar onTableSelect={() => setIsMobileSidebarOpen(false)} />
+          </div>
 
           {/* Main Content Area */}
-          <div className="flex-1 relative bg-gray-100 overflow-y-auto">
+          <div className="flex-1 relative bg-gray-100 overflow-y-auto lg:ml-0">
             {/* Error Display */}
             {error && (
-              <div className="absolute top-4 left-4 right-4 z-10">
+              <div className="absolute top-4 left-4 right-4 z-10 lg:left-4">
                 <div className="bg-red-50 border-l-4 border-red-400 p-4 animate-fade-in">
                   <div className="flex">
                     <div className="ml-3">
@@ -152,7 +208,7 @@ const DashboardScreen = () => {
                   <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
                   <p className="text-gray-600">Loading database tables...</p>
                   <p className="text-gray-500 text-sm mt-2">
-                    Fetching models from MyUsta backend
+                    Fetching models from MyUsta and Chat backends
                   </p>
                 </div>
               </div>
@@ -160,18 +216,20 @@ const DashboardScreen = () => {
 
             {/* Main Dashboard Content */}
             {!loading && (tables.myusta?.length || 0) + (tables.chat?.length || 0) > 0 && (
-              <div className="relative">
-                {/* KPI Cards - Always visible when data is loaded */}
-                <KpiCards />
+              <div className="relative pt-16 lg:pt-0">
+                {/* Add padding-top for mobile to account for burger menu button */}
                 
-               
+                {/* KPI Cards - Always visible when data is loaded */}
+                <div className="px-4 lg:px-0">
+                  <KpiCards />
+                </div>
               </div>
             )}
 
             {/* Empty state when no tables are available */}
             {!loading && !error && (tables.myusta?.length || 0) + (tables.chat?.length || 0) === 0 && (
-              <div className="absolute inset-0 flex items-center justify-center">
-                <div className="text-center">
+              <div className="absolute inset-0 flex items-center justify-center pt-16 lg:pt-0">
+                <div className="text-center px-4">
                   <div className="mx-auto w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mb-4">
                     <svg className="w-8 h-8 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M20 13V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7m16 0v5a2 2 0 01-2 2H6a2 2 0 01-2-2v-5m16 0h-2.586a1 1 0 00-.707.293l-2.414 2.414a1 1 0 01-.707.293h-2.172a1 1 0 01-.707-.293l-2.414-2.414A1 1 0 009.586 13H7" />

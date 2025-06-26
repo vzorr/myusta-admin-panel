@@ -3,7 +3,7 @@ const { createProxyMiddleware } = require('http-proxy-middleware');
 
 module.exports = function(app) {
   console.log('🔧 Setting up multi-backend proxy configuration...');
-  
+  /*
   // MyUsta Backend (port 3000) - handles /api/* routes (except /api/v1/*)
   const myustaProxy = createProxyMiddleware({
     target: 'http://127.0.0.1:3000',
@@ -66,4 +66,6 @@ module.exports = function(app) {
   console.log('   /api/users -> MyUsta (port 3000)');
   console.log('   /api/v1/conversations -> Chat (port 5000)');
   console.log('   /api/v1/messages -> Chat (port 5000)');
+
+  */
 };
